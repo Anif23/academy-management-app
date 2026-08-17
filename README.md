@@ -43,15 +43,13 @@ seeded with realistic interlinked demo data on first load.
 
 ```bash
 npm install
-npm run dev       # start the dev server (http://localhost:5173)
-npm run build     # type-check + production build to dist/
-npm run preview   # preview the production build locally
+npm run dev  
 ```
 
 The app seeds ~48 students, 8 batches, 13 employees, 26 walk-in leads, fee
 records, attendance history, class reports, tasks, and performance
 evaluations into `localStorage` on first load. All CRUD changes persist
-across reloads. Data is stored under the `acadmey:v2:*` localStorage keys
+across reloads. Data is stored under the `acadmey:v1:*` localStorage keys
 if you ever want to inspect or clear it manually.
 
 ---
