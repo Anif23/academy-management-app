@@ -1,0 +1,459 @@
+// Academy Management System — Prisma schema
+// Modular monolith: one schema, one PostgreSQL database.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --------------------------------------------------------------------------
+// Auth / users
+// --------------------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  STAFF
+  STUDENT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model User {
+  id           String     @id @default(cuid())
+  name         String
+  email        String     @unique
+  passwordHash String
+  role         Role       @default(ADMIN)
+  department   String?
+  phone        String?
+  status       UserStatus @default(ACTIVE)
+  avatar       String?
+
+  // Optional links to a domain profile, depending on role.
+  employee     Employee?
+  student      Student?
+
+  refreshTokens RefreshToken[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+// A refresh token is stored server-side (hashed) so it can be revoked on
+// logout / password change, instead of trusting a long-lived client-only JWT.
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// --------------------------------------------------------------------------
+// Courses
+// --------------------------------------------------------------------------
+
+enum CourseStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Course {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  duration    String
+  fee         Decimal      @db.Decimal(10, 2)
+  description String?
+  status      CourseStatus @default(ACTIVE)
+
+  batches  Batch[]
+  students Student[]
+  walkIns  WalkIn[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("courses")
+}
+
+// --------------------------------------------------------------------------
+// Employees / trainers
+// --------------------------------------------------------------------------
+
+enum EmployeeType {
+  TRAINER
+  DEVELOPER
+  DESIGNER
+  VIDEO_EDITOR
+  DIGITAL_MARKETING
+  COUNSELLOR
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Employee {
+  id           String         @id @default(cuid())
+  employeeCode String         @unique
+  name         String
+  type         EmployeeType
+  email        String         @unique
+  phone        String
+  status       EmployeeStatus @default(ACTIVE)
+  joiningDate  DateTime
+
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  trainerBatches   Batch[]      @relation("BatchTrainer")
+  counselledLeads  WalkIn[]     @relation("WalkInCounsellor")
+  counselledStuds  Student[]    @relation("StudentCounsellor")
+  classReports     ClassReport[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("employees")
+}
+
+// --------------------------------------------------------------------------
+// Batches
+// --------------------------------------------------------------------------
+
+enum BatchStatus {
+  UPCOMING
+  ONGOING
+  COMPLETED
+}
+
+model Batch {
+  id          String      @id @default(cuid())
+  batchCode   String      @unique
+  name        String
+  startDate   DateTime
+  endDate     DateTime
+  classTiming String
+  days        String[]
+  status      BatchStatus @default(UPCOMING)
+
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+
+  trainerId String?
+  trainer   Employee? @relation("BatchTrainer", fields: [trainerId], references: [id], onDelete: SetNull)
+
+  students     Student[]
+  attendance   Attendance[]
+  classReports ClassReport[]
+  tasks        Task[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("batches")
+}
+
+// --------------------------------------------------------------------------
+// Students
+// --------------------------------------------------------------------------
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum StudentStatus {
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  DROPPED
+}
+
+enum StudentMode {
+  ONLINE
+  OFFLINE
+  HYBRID
+}
+
+model Student {
+  id              String        @id @default(cuid())
+  studentCode     String        @unique
+  name            String
+  photo           String?
+  mobile          String
+  email           String        @unique
+  dob             DateTime?
+  gender          Gender
+  address         String
+  qualification   String
+  courseDuration  String
+  joiningDate     DateTime
+  mode            StudentMode   @default(OFFLINE)
+  status          StudentStatus @default(ACTIVE)
+
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+
+  batchId String?
+  batch   Batch?  @relation(fields: [batchId], references: [id], onDelete: SetNull)
+
+  counsellorId String?
+  counsellor   Employee? @relation("StudentCounsellor", fields: [counsellorId], references: [id], onDelete: SetNull)
+
+  walkInId String? @unique
+  walkIn   WalkIn? @relation(fields: [walkInId], references: [id], onDelete: SetNull)
+
+  fee          Fee?
+  attendance   Attendance[]
+  tasks        Task[]
+  performance  Performance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("students")
+}
+
+// --------------------------------------------------------------------------
+// Walk-ins
+// --------------------------------------------------------------------------
+
+enum LeadSource {
+  WALK_IN
+  WEBSITE
+  GOOGLE
+  INSTAGRAM
+  REFERRAL
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  COUNSELLING
+  INTERESTED
+  ADMISSION
+  NOT_INTERESTED
+}
+
+model WalkIn {
+  id            String     @id @default(cuid())
+  name          String
+  mobile        String
+  email         String
+  qualification String
+  location      String
+  source        LeadSource
+  enquiryDate   DateTime
+  remarks       String?
+  followUpDate  DateTime?
+  status        LeadStatus @default(NEW)
+
+  courseInterestedId String
+  courseInterested   Course @relation(fields: [courseInterestedId], references: [id], onDelete: Restrict)
+
+  counsellorId String?
+  counsellor   Employee? @relation("WalkInCounsellor", fields: [counsellorId], references: [id], onDelete: SetNull)
+
+  convertedStudent Student?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("walk_ins")
+}
+
+// --------------------------------------------------------------------------
+// Fees & payments
+// --------------------------------------------------------------------------
+
+enum PaymentMode {
+  CASH
+  UPI
+  CARD
+  BANK_TRANSFER
+  CHEQUE
+}
+
+model Fee {
+  id              String   @id @default(cuid())
+  courseFee       Decimal  @db.Decimal(10, 2)
+  discount        Decimal  @default(0) @db.Decimal(10, 2)
+  nextPaymentDate DateTime?
+  remarks         String?
+
+  studentId String  @unique
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  payments Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("fees")
+}
+
+model Payment {
+  id      String      @id @default(cuid())
+  amount  Decimal     @db.Decimal(10, 2)
+  date    DateTime
+  mode    PaymentMode
+  remarks String?
+
+  feeId String
+  fee   Fee    @relation(fields: [feeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([feeId])
+  @@map("payments")
+}
+
+// --------------------------------------------------------------------------
+// Attendance
+// --------------------------------------------------------------------------
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LEAVE
+}
+
+model Attendance {
+  id     String           @id @default(cuid())
+  date   DateTime
+  status AttendanceStatus
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  batchId String
+  batch   Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  // A student can only have one attendance record per batch per day.
+  @@unique([studentId, batchId, date])
+  @@index([batchId, date])
+  @@map("attendance")
+}
+
+// --------------------------------------------------------------------------
+// Class / training reports
+// --------------------------------------------------------------------------
+
+enum ClassReportTaskStatus {
+  NOT_GIVEN
+  GIVEN
+  REVIEWED
+}
+
+model ClassReport {
+  id                 String                 @id @default(cuid())
+  date               DateTime
+  topic              String
+  module             String
+  description        String
+  tasksGiven         String?
+  taskStatus         ClassReportTaskStatus  @default(GIVEN)
+  studentPerformance String?
+  remarks            String?
+  nextClassPlan      String?
+
+  batchId String
+  batch   Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  trainerId String?
+  trainer   Employee? @relation(fields: [trainerId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([batchId, date])
+  @@map("class_reports")
+}
+
+// --------------------------------------------------------------------------
+// Tasks
+// --------------------------------------------------------------------------
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model Task {
+  id                String       @id @default(cuid())
+  title             String
+  description       String
+  assignedDate      DateTime
+  dueDate           DateTime
+  priority          TaskPriority @default(MEDIUM)
+  status            TaskStatus   @default(PENDING)
+  trainerRemarks    String?
+  batchAssignmentId String?
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  batchId String?
+  batch   Batch?  @relation(fields: [batchId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([batchAssignmentId])
+  @@map("tasks")
+}
+
+// --------------------------------------------------------------------------
+// Performance
+// --------------------------------------------------------------------------
+
+model Performance {
+  id                 String   @id @default(cuid())
+  date               DateTime
+  technicalKnowledge Int
+  practicalSkills    Int
+  communication      Int
+  attendance         Int
+  taskCompletion     Int
+  behaviour          Int
+  remarks            String?
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId])
+  @@map("performance")
+}
