@@ -23,6 +23,7 @@ const env = {
   redisUrl: process.env.REDIS_URL || '',
 
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+  publicFrontendUrl: process.env.FRONTEND_PUBLIC_URL || 'http://localhost:5174',
   cookieSecure: process.env.COOKIE_SECURE === 'true',
 
   awsRegion: process.env.AWS_REGION || '',

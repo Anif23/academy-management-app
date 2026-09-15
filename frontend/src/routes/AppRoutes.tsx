@@ -22,6 +22,7 @@ import Performance from '../pages/Performance';
 import Reports from '../pages/Reports';
 import Profile from '../pages/Profile';
 import Settings from '../pages/Settings';
+import AcademySettings from '../pages/AcademySettings';
 import Users from '../pages/Users';
 import NotFound from '../pages/NotFound';
 
@@ -175,6 +176,14 @@ export function AppRoutes() {
           element={
             <RoleRoute allowedRoles={['ADMIN']}>
               <Settings />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/academy-settings"
+          element={
+            <RoleRoute allowedRoles={['ADMIN']}>
+              <AcademySettings />
             </RoleRoute>
           }
         />

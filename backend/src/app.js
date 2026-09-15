@@ -17,10 +17,25 @@ const app = express();
 // secure cookies see the real client IP/protocol.
 app.set('trust proxy', 1);
 
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  }),
+);
 app.use(
   cors({
-    origin: env.frontendUrl,
+    origin: (origin, callback) => {
+      const allowedOrigins = [
+        env.frontendUrl,              
+        env.publicFrontendUrl, 
+      ];
+
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
   }),
 );
@@ -32,6 +47,7 @@ app.use(apiLimiter);
 
 app.get('/health', (req, res) => res.json({ success: true, status: 'ok', timestamp: new Date().toISOString() }));
 
+app.use('/uploads', express.static('uploads'));
 app.use('/api', apiRoutes);
 
 app.use(notFoundMiddleware);

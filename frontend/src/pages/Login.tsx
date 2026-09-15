@@ -46,7 +46,7 @@ export default function Login() {
     <div className="flex min-h-screen items-center justify-center bg-surface-muted px-4 py-10">
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center text-center">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-brand-600 text-white shadow-soft">
+          <div className={`mb-4 flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl ${logoDataUrl ? "bg-transparent" : "bg-brand-600 text-white"} shadow-soft`}>
             {logoDataUrl ? <img src={logoDataUrl} alt={appName} className="h-full w-full object-cover" /> : <GraduationCap className="h-6 w-6" />}
           </div>
           <h1 className="text-xl font-semibold text-text-primary">Welcome to {appName}</h1>

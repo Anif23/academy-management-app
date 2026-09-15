@@ -55,3 +55,25 @@ export function FieldError({ message }: { message?: string }) {
 export function FormRow({ children, className }: { children: ReactNode; className?: string }) {
   return <div className={cn('grid gap-4 sm:grid-cols-2', className)}>{children}</div>;
 }
+
+interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
+  label: string;
+  error?: string;
+  isTextArea?: boolean;
+  type?: string;
+}
+
+export const Field = forwardRef<HTMLInputElement, FieldProps>(({ label, error, isTextArea, type = 'text', ...props }, ref) => {
+  return (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      {isTextArea ? (
+        <Textarea ref={ref as any} error={error} {...(props as TextareaHTMLAttributes<HTMLTextAreaElement>)} />
+      ) : (
+        <Input ref={ref} type={type} error={error} {...props} />
+      )}
+      <FieldError message={error} />
+    </div>
+  );
+});
+Field.displayName = 'Field';

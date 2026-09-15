@@ -10,8 +10,8 @@ interface BrandingState {
 }
 
 const DEFAULTS = {
-  appName: 'AcademyPro',
-  tagline: 'Student Management',
+  appName: 'Academy Management',
+  tagline: 'For Managing Everything',
   logoDataUrl: '',
 };
 

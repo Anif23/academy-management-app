@@ -87,12 +87,13 @@ async function update(id, patch) {
   return toPublic(batch);
 }
 
-async function remove(id) {
-  const studentCount = await prisma.student.count({ where: { batchId: id } });
-  if (studentCount > 0) {
-    throw ApiError.conflict('Cannot delete a batch that has students assigned to it.', 'BATCH_IN_USE');
-  }
-  await prisma.batch.delete({ where: { id } });
+async function getByCourseId(courseId) {
+  const rows = await prisma.batch.findMany({
+    where: { courseId },
+    include: includeRelations,
+    orderBy: { startDate: 'asc' },
+  });
+  return rows.map(toPublic);
 }
 
-module.exports = { getAll, getAllRaw, getById, create, update, remove, toPublic };
+module.exports = { getAll, getAllRaw, getById, getByCourseId, create, update, toPublic };

@@ -44,6 +44,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Reports', path: '/reports', icon: FileBarChart, roles: ['ADMIN'] },
   { label: 'User Accounts', path: '/users', icon: ShieldCheck, roles: ['ADMIN'] },
   { label: 'Settings', path: '/settings', icon: Settings, roles: ['ADMIN'] },
+  { label: 'Academy Content', path: '/academy-settings', icon: BookOpen, roles: ['ADMIN'] },
 ];
 
 export function navItemsForRole(role: string | undefined): NavItem[] {

@@ -457,3 +457,54 @@ model Performance {
   @@index([studentId])
   @@map("performance")
 }
+
+// --------------------------------------------------------------------------
+// Academy Settings & Content
+// --------------------------------------------------------------------------
+
+model AcademySettings {
+  id          String  @id @default("singleton") // Only one row allowed
+  name        String
+  logoUrl     String?
+  email       String
+  phone       String
+  whatsapp    String
+  address     String
+  city        String
+  state       String
+  country     String
+  description String?
+  mission     String?
+  vision      String?
+  workingHours String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("academy_settings")
+}
+
+model Testimonial {
+  id        String   @id @default(cuid())
+  studentName String
+  role       String? // e.g., "Software Engineer at Google"
+  content    String
+  photo     String?
+  rating    Int      @default(5)
+  isActive   Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@map("testimonials")
+}
+
+model FAQ {
+  id        String   @id @default(cuid())
+  question  String
+  answer    String
+  category  String?
+  order     Int      @default(0)
+  isActive   Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@map("faqs")
+}
+

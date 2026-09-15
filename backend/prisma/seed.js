@@ -39,8 +39,37 @@ function daysFromNow(n) {
   return d;
 }
 
+async function safeDeleteMany(action, modelName) {
+  try {
+    await action();
+  } catch (error) {
+    if (error?.code === 'P2021') {
+      console.log(`Skipping reset for missing table: ${modelName}`);
+      return;
+    }
+    throw error;
+  }
+}
+
+async function resetSeedData() {
+  await safeDeleteMany(() => prisma.task.deleteMany(), 'tasks');
+  await safeDeleteMany(() => prisma.attendance.deleteMany(), 'attendance');
+  await safeDeleteMany(() => prisma.classReport.deleteMany(), 'class_reports');
+  await safeDeleteMany(() => prisma.payment.deleteMany(), 'payments');
+  await safeDeleteMany(() => prisma.performance.deleteMany(), 'performance');
+  await safeDeleteMany(() => prisma.fee.deleteMany(), 'fees');
+  await safeDeleteMany(() => prisma.student.deleteMany(), 'students');
+  await safeDeleteMany(() => prisma.walkIn.deleteMany(), 'walk_ins');
+  await safeDeleteMany(() => prisma.batch.deleteMany(), 'batches');
+  await safeDeleteMany(() => prisma.employee.deleteMany(), 'employees');
+  await safeDeleteMany(() => prisma.refreshToken.deleteMany(), 'refresh_tokens');
+  await safeDeleteMany(() => prisma.user.deleteMany(), 'users');
+  await safeDeleteMany(() => prisma.course.deleteMany(), 'courses');
+}
+
 async function main() {
   console.log('Seeding database...');
+  await resetSeedData();
 
   // --- Demo login accounts (one per role) -------------------------------
   const passwordHash = await bcrypt.hash('Password123!', 12);
@@ -49,7 +78,7 @@ async function main() {
     where: { email: 'admin@academypro.com' },
     update: {},
     create: {
-      name: 'Fathima Rasheed',
+      name: 'Admin User',
       email: 'admin@academypro.com',
       passwordHash: await bcrypt.hash('admin123', 12),
       role: 'ADMIN',

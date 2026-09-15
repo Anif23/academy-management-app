@@ -17,7 +17,7 @@ function SidebarContent({ onNavigate, onClose }: { onNavigate?: () => void; onCl
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-border px-4 sm:px-5">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand-600 text-white">
+        <div className={`flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg ${logoDataUrl ? "bg-transparent" : "bg-brand-600 text-white"}`}>
           {logoDataUrl ? <img src={logoDataUrl} alt={appName} className="h-full w-full object-cover" /> : <GraduationCap className="h-5 w-5" />}
         </div>
         <div className="min-w-0 flex-1">
@@ -59,7 +59,7 @@ function SidebarContent({ onNavigate, onClose }: { onNavigate?: () => void; onCl
       </nav>
 
       <div className="shrink-0 border-t border-border px-4 py-4">
-        <p className="text-xs text-text-muted">© 2026 {appName}. Frontend demo build.</p>
+        <p className="text-xs text-text-muted">© 2026 {appName}. All rights reserved.</p>
       </div>
     </div>
   );
