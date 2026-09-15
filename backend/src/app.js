@@ -3,6 +3,8 @@ const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const helmet = require('helmet');
 const pinoHttp = require('pino-http');
+const fs = require('fs'); // Added for directory checking
+const path = require('path'); // Added for accurate path resolution
 
 const env = require('./config/env');
 const logger = require('./config/logger');
@@ -12,6 +14,13 @@ const notFoundMiddleware = require('./middleware/notFoundMiddleware');
 const errorMiddleware = require('./middleware/errorMiddleware');
 
 const app = express();
+
+// Automatically create the uploads directory if it is missing (crucial for AWS)
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+  logger.info('Created missing uploads directory');
+}
 
 // Behind a load balancer/reverse proxy in production, so rate limiting and
 // secure cookies see the real client IP/protocol.
