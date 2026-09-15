@@ -3,12 +3,14 @@ import { useCourse } from '../hooks/useCourses';
 import { useBatches } from '../hooks/useBatches';
 import { CheckCircle, Clock, CreditCard, ArrowLeft, MessageSquare } from 'lucide-react';
 import type { Batch } from '../types';
+import { useAcademyInfo } from '../hooks/useAcademyInfo';
 
 const CourseDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: course, isLoading: courseLoading, error: courseError } = useCourse(id!);
   const { data: batches, isLoading: batchesLoading } = useBatches(id!);
+  const { data: academy } = useAcademyInfo();
 
   if (courseLoading) return <div className="min-h-screen flex items-center justify-center">Loading course details...</div>;
   if (courseError || !course) return <div className="min-h-screen flex items-center justify-center">Course not found.</div>;
@@ -119,7 +121,7 @@ const CourseDetails = () => {
                   Register Now
                 </button>
                 <a
-                  href={`https://wa.me/your-number?text=Hi, I am interested in the ${course.name} course. Can you provide more details?`}
+                  href={`https://wa.me/${academy?.whatsapp || 'your-number'}?text=Hi, I am interested in the ${course.name} course. Can you provide more details?`}
                   className="w-full py-4 bg-white text-primary rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-100 transition-all"
                 >
                   <MessageSquare size={20} className="text-accent" />

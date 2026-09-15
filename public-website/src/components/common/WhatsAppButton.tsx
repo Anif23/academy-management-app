@@ -1,14 +1,18 @@
 import { MessageCircle } from 'lucide-react';
+import { useAcademyInfo } from '../../hooks/useAcademyInfo';
 
 interface WhatsAppButtonProps {
   text?: string;
 }
 
 const WhatsAppButton = ({ text = "Chat with us" }: WhatsAppButtonProps) => {
+
+  const { data: academy } = useAcademyInfo();
+
   const handleWhatsAppClick = () => {
-    // In a real app, this would be dynamically updated based on current page
+
     const message = encodeURIComponent("Hi, I'm visiting the Academy website and would like more information.");
-    window.open(`https://wa.me/your-number?text=${message}`, '_blank');
+    window.open(`https://wa.me/${academy?.whatsapp || 'your-number'}?text=${message}`, '_blank');
   };
 
   return (
