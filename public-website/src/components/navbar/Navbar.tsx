@@ -20,13 +20,13 @@ const Navbar = () => {
   }, []);
 
   const navLinks = [
-    { name: 'Home', href: '#home' },
-    { name: 'About', href: '#about' },
-    { name: 'Courses', href: '#courses' },
-    { name: 'Learning', href: '#learning' },
-    { name: 'Testimonials', href: '#testimonials' },
-    { name: 'FAQ', href: '#faq' },
-    { name: 'Contact', href: '#contact' },
+    { name: 'Home', href: '/#home' },
+    { name: 'About', href: '/#about' },
+    { name: 'Courses', href: '/#courses' },
+    { name: 'Learning', href: '/#learning' },
+    { name: 'Testimonials', href: '/#testimonials' },
+    { name: 'FAQ', href: '/#faq' },
+    { name: 'Contact', href: '/#contact' },
   ];
 
   const logoUrl = academy?.logoUrl ? `${serverBaseUrl}${academy.logoUrl}` : null;

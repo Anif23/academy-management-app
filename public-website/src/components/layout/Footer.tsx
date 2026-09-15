@@ -11,22 +11,22 @@ const Footer = () => {
 
   const footerLinks = {
     company: [
-      { name: "About Us", href: "#about" },
-      { name: "Courses", href: "#courses" },
-      { name: "Learning Journey", href: "#learning" },
-      { name: "FAQ", href: "#faq" },
+      { name: "About Us", href: "/#about" },
+      { name: "Courses", href: "/#courses" },
+      { name: "Learning Journey", href: "/#learning" },
+      { name: "FAQ", href: "/#faq" },
     ],
     support: [
-      { name: "Contact Us", href: "#contact" },
+      { name: "Contact Us", href: "/#contact" },
       { name: "Registration", href: "/register" },
-      { name: "Privacy Policy", href: "#" },
-      { name: "Terms of Service", href: "#" },
+      { name: "Privacy Policy", href: "/#" },
+      { name: "Terms of Service", href: "/#" },
     ],
     socials: [
-      { name: "Facebook", icon: FaFacebook, href: "#" },
-      { name: "Twitter", icon: FaTwitter, href: "#" },
-      { name: "Instagram", icon: FaInstagram, href: "#" },
-      { name: "LinkedIn", icon: FaLinkedin, href: "#" },
+      { name: "Facebook", icon: FaFacebook, href: "/#" },
+      { name: "Twitter", icon: FaTwitter, href: "/#" },
+      { name: "Instagram", icon: FaInstagram, href: "/#" },
+      { name: "LinkedIn", icon: FaLinkedin, href: "/#" },
     ],
   };
 
@@ -139,10 +139,10 @@ const Footer = () => {
             reserved.
           </p>
           <div className="flex gap-6">
-            <a href="#" className="hover:text-white transition-colors">
+            <a href="/#" className="hover:text-white transition-colors">
               Privacy Policy
             </a>
-            <a href="#" className="hover:text-white transition-colors">
+            <a href="/#" className="hover:text-white transition-colors">
               Terms of Service
             </a>
           </div>
