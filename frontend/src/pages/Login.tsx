@@ -36,7 +36,7 @@ export default function Login() {
       const user = await authApi.login(values.email, values.password);
       login(user);
       toastSuccess('Welcome back!', `Logged in as ${user.name}`);
-      navigate(homeRouteForRole(user.role), { replace: true });
+      navigate(user.mustChangePassword ? '/change-password' : homeRouteForRole(user.role, user.permissions), { replace: true });
     } catch (error) {
       setServerError(error instanceof Error ? error.message : 'Login failed.');
     }
@@ -115,7 +115,8 @@ export default function Login() {
           <div className="mt-6 rounded-lg border border-dashed border-border bg-surface-muted px-4 py-3 text-xs text-text-muted">
             <p className="font-medium text-text-secondary">Demo credentials</p>
             <p className="mt-1">Admin: admin@academypro.com / admin123</p>
-            <p>Staff: trainer@academypro.com / staff123</p>
+            <p>Trainer: trainer@academypro.com / staff123</p>
+            <p>Counsellor: counsellor@academypro.com / counsellor123</p>
             <p>Student: student@academypro.com / student123</p>
           </div>
         </div>

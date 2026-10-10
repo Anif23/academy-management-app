@@ -53,6 +53,9 @@ export function EmployeeForm({ defaultValues, onSubmit, onCancel, isSubmitting }
             <option value="Digital Marketing">Digital Marketing</option>
             <option value="Counsellor">Counsellor</option>
           </Select>
+          <p className="mt-1.5 text-xs text-text-muted">
+            Only Trainers and Counsellors get an app login (email as first password). Other roles are records only.
+          </p>
         </div>
       </FormRow>
 

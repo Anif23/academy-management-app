@@ -1,17 +1,22 @@
 const asyncHandler = require('../utils/asyncHandler');
+const ApiError = require('../utils/ApiError');
 const batchService = require('../services/batchService');
+const { staffOwnsBatch } = require('../utils/staffScope');
 
 const getAll = asyncHandler(async (req, res) => {
-  const result = await batchService.getAll(req.query);
+  const result = await batchService.getAll(req.query, req.user);
   res.json({ success: true, ...result });
 });
 
 const getAllRaw = asyncHandler(async (req, res) => {
-  const data = await batchService.getAllRaw();
+  const data = await batchService.getAllRaw(req.user);
   res.json({ success: true, data });
 });
 
 const getById = asyncHandler(async (req, res) => {
+  if (req.user.role === 'STAFF' && !(await staffOwnsBatch(req.user.employeeId, req.params.id))) {
+    throw ApiError.forbidden("You're not assigned to this batch.", 'NOT_YOUR_BATCH');
+  }
   const data = await batchService.getById(req.params.id);
   res.json({ success: true, data });
 });

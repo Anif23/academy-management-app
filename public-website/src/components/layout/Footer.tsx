@@ -1,13 +1,50 @@
+import { useRef } from "react";
 import { Mail, Phone, MapPin } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useAcademyInfo } from "../../hooks/useAcademyInfo";
 import { FaFacebook, FaTwitter, FaInstagram, FaLinkedin } from "react-icons/fa";
 
+gsap.registerPlugin(ScrollTrigger);
+
 const Footer = () => {
   const { data: academy } = useAcademyInfo();
+  const socialsRef = useRef<HTMLDivElement>(null);
 
   const currentYear = new Date().getFullYear();
 
   const serverBaseUrl = import.meta.env.VITE_API_URL.replace("/api", "");
+
+  const socials = [
+    { name: 'Facebook', icon: FaFacebook, href: academy?.facebookUrl, hover: 'hover:bg-[#1877F2]' },
+    { name: 'Twitter', icon: FaTwitter, href: academy?.twitterUrl, hover: 'hover:bg-black' },
+    { name: 'Instagram', icon: FaInstagram, href: academy?.instagramUrl, hover: 'hover:bg-gradient-to-tr hover:from-[#f09433] hover:via-[#e6683c] hover:to-[#bc1888]' },
+    { name: 'LinkedIn', icon: FaLinkedin, href: academy?.linkedinUrl, hover: 'hover:bg-[#0A66C2]' },
+  ].filter((social): social is typeof social & { href: string } => Boolean(social.href));
+
+  useGSAP(
+    () => {
+      const mql = window.matchMedia('(prefers-reduced-motion: reduce)');
+      if (mql.matches || socials.length === 0 || !socialsRef.current?.querySelector('.social-icon')) return;
+
+      gsap.fromTo(
+        '.social-icon',
+        { opacity: 0, scale: 0.4, y: 12 },
+        {
+          opacity: 1,
+          scale: 1,
+          y: 0,
+          duration: 0.5,
+          stagger: 0.08,
+          ease: 'back.out(2.5)',
+          scrollTrigger: { trigger: socialsRef.current, start: 'top 95%' },
+        },
+      );
+    },
+    { scope: socialsRef, dependencies: [socials.length] },
+  );
 
   const footerLinks = {
     company: [
@@ -19,19 +56,18 @@ const Footer = () => {
     support: [
       { name: "Contact Us", href: "/#contact" },
       { name: "Registration", href: "/register" },
-      { name: "Privacy Policy", href: "/#" },
-      { name: "Terms of Service", href: "/#" },
-    ],
-    socials: [
-      { name: "Facebook", icon: FaFacebook, href: "/#" },
-      { name: "Twitter", icon: FaTwitter, href: "/#" },
-      { name: "Instagram", icon: FaInstagram, href: "/#" },
-      { name: "LinkedIn", icon: FaLinkedin, href: "/#" },
     ],
   };
 
+  const legalLinks = [
+    { name: "Privacy Policy", href: "/privacy-policy" },
+    { name: "Terms & Conditions", href: "/terms" },
+    { name: "Cookie Policy", href: "/cookie-policy" },
+    { name: "Refund Policy", href: "/refund-policy" },
+  ];
+
   const logoUrl = academy?.logoUrl
-    ? `${serverBaseUrl}${academy.logoUrl}`
+    ? (/^https?:\/\//.test(academy.logoUrl) ? academy.logoUrl : `${serverBaseUrl}${academy.logoUrl}`)
     : null;
 
   return (
@@ -60,21 +96,33 @@ const Footer = () => {
               {academy?.description?.split(".")[0] ||
                 "Empowering students with industry-leading education and specialized training to excel in their careers."}
             </p>
-            <div className="flex gap-4">
-              {footerLinks.socials.map((social) => (
-                <a
-                  key={social.name}
-                  href={social.href}
-                  className="p-2 bg-white/10 rounded-full hover:bg-accent transition-all duration-300 group"
-                  title={social.name}
-                >
-                  <social.icon
-                    size={20}
-                    className="group-hover:scale-110 transition-transform"
-                  />
-                </a>
-              ))}
-            </div>
+            {(academy?.legalName || academy?.registrationNumber) && (
+              <p className="text-xs text-slate-400">
+                {academy?.legalName}
+                {academy?.legalName && academy?.registrationNumber ? " · " : ""}
+                {academy?.registrationNumber && `Reg. No. ${academy.registrationNumber}`}
+              </p>
+            )}
+            {socials.length > 0 && (
+              <div ref={socialsRef} className="flex gap-4">
+                {socials.map((social) => (
+                  <a
+                    key={social.name}
+                    href={social.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`social-icon p-2.5 bg-white/10 rounded-full transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-110 hover:shadow-lg group ${social.hover}`}
+                    title={social.name}
+                    aria-label={`${academy?.name || 'Academy'} on ${social.name}`}
+                  >
+                    <social.icon
+                      size={20}
+                      className="transition-transform duration-300 group-hover:rotate-[360deg]"
+                    />
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Quick Links */}
@@ -108,6 +156,13 @@ const Footer = () => {
                   </a>
                 </li>
               ))}
+              {legalLinks.map((link) => (
+                <li key={link.name}>
+                  <Link to={link.href} className="text-slate-300 hover:text-white transition-colors text-sm">
+                    {link.name}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
@@ -122,11 +177,11 @@ const Footer = () => {
                 </span>
               </li>
               <li className="flex items-center gap-3 text-slate-300 text-sm">
-                <Phone size={18} shrink-0 text-accent />
+                <Phone size={18} className="shrink-0 text-accent" />
                 <span>{academy?.phone}</span>
               </li>
               <li className="flex items-center gap-3 text-slate-300 text-sm">
-                <Mail size={18} shrink-0 text-accent />
+                <Mail size={18} className="shrink-0 text-accent" />
                 <span>{academy?.email}</span>
               </li>
             </ul>
@@ -135,17 +190,16 @@ const Footer = () => {
 
         <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-slate-400 text-sm">
           <p>
-            © {currentYear} {academy?.name || "AcademyPro"}. All rights
+            © {currentYear} {academy?.legalName || academy?.name || "AcademyPro"}. All rights
             reserved.
           </p>
-          <div className="flex gap-6">
-            <a href="/#" className="hover:text-white transition-colors">
-              Privacy Policy
-            </a>
-            <a href="/#" className="hover:text-white transition-colors">
-              Terms of Service
-            </a>
-          </div>
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event("open-cookie-preferences"))}
+            className="hover:text-white transition-colors underline-offset-2 hover:underline"
+          >
+            Manage cookie preferences
+          </button>
         </div>
       </div>
     </footer>

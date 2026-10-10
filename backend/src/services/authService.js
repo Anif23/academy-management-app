@@ -1,6 +1,7 @@
 const prisma = require('../config/prisma');
 const ApiError = require('../utils/ApiError');
 const { hashPassword, comparePassword } = require('../utils/password');
+const { permissionsForRole } = require('./permissionsService');
 const { signAccessToken, generateRefreshToken, hashRefreshToken } = require('../utils/tokens');
 
 const ACCESS_TOKEN_MAX_AGE_MS = 15 * 60 * 1000;
@@ -12,10 +13,12 @@ function toPublicUser(user) {
     name: user.name,
     email: user.email,
     role: user.role,
+    permissions: permissionsForRole(user.role),
     department: user.department || '',
     phone: user.phone || '',
     status: user.status,
     avatar: user.avatar || '',
+    mustChangePassword: user.mustChangePassword,
     studentId: user.student?.id ?? null,
     employeeId: user.employee?.id ?? null,
   };
@@ -135,4 +138,40 @@ async function updateProfile(userId, patch) {
   return toPublicUser(user);
 }
 
-module.exports = { login, register, refresh, logout, getCurrentUser, updateProfile, toPublicUser };
+/**
+ * Every password change — including the forced first-login change for
+ * auto-created Student/Staff accounts — goes through here. Requires the
+ * current password (even for a forced change, since the "current" one is
+ * the temporary email-as-password the admin set), and always clears
+ * mustChangePassword on success.
+ */
+async function changePassword(userId, { currentPassword, newPassword }) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw ApiError.notFound('User not found.');
+
+  const matches = await comparePassword(currentPassword, user.passwordHash);
+  if (!matches) {
+    throw ApiError.unauthorized('Your current password is incorrect.', 'INVALID_CURRENT_PASSWORD');
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash, mustChangePassword: false },
+    include: { employee: true, student: true },
+  });
+
+  // Changing your password invalidates every other active session — if a
+  // device/token was compromised, this is the moment that matters most —
+  // then issues a fresh session for this device so the user isn't logged
+  // out by the very action of securing their account.
+  await prisma.refreshToken.updateMany({
+    where: { userId, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+  const session = await issueSession(updated);
+
+  return { user: toPublicUser(updated), session };
+}
+
+module.exports = { login, register, refresh, logout, getCurrentUser, updateProfile, changePassword, toPublicUser };

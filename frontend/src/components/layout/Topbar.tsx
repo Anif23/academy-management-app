@@ -39,8 +39,15 @@ export function Topbar() {
         setProfileOpen(false);
       }
     }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setProfileOpen(false);
+    }
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   async function handleLogout() {
@@ -115,20 +122,23 @@ export function Topbar() {
             <button
               type="button"
               onClick={() => setProfileOpen((prev) => !prev)}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-white"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
               aria-label="Open profile menu"
+              aria-haspopup="menu"
+              aria-expanded={profileOpen}
             >
               {user ? initials(user.name) : <User className="h-4 w-4" />}
             </button>
 
             {profileOpen && (
-              <div className="absolute right-0 top-full z-40 mt-2 w-56 rounded-xl border border-border bg-surface p-1.5 shadow-popover animate-fade-in">
+              <div role="menu" className="absolute right-0 top-full z-40 mt-2 w-56 rounded-xl border border-border bg-surface p-1.5 shadow-popover animate-fade-in">
                 <div className="border-b border-border px-3 py-2.5">
                   <p className="truncate text-sm font-medium text-text-primary">{user?.name}</p>
                   <p className="truncate text-xs text-text-muted">{user?.email}</p>
                 </div>
                 <button
                   type="button"
+                  role="menuitem"
                   onClick={() => {
                     setProfileOpen(false);
                     navigate('/profile');
@@ -140,6 +150,7 @@ export function Topbar() {
                 </button>
                 <button
                   type="button"
+                  role="menuitem"
                   onClick={handleLogout}
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10"
                 >

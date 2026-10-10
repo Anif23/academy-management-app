@@ -7,7 +7,8 @@ interface StatCardProps {
   value: string;
   icon: LucideIcon;
   trend?: { value: string; direction: 'up' | 'down' };
-  tone?: 'brand' | 'green' | 'amber' | 'purple';
+  tone?: 'brand' | 'green' | 'amber' | 'purple' | 'red';
+  onClick?: () => void;
 }
 
 const toneClasses = {
@@ -15,11 +16,21 @@ const toneClasses = {
   green: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400',
   amber: 'bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400',
   purple: 'bg-purple-50 text-purple-600 dark:bg-purple-500/15 dark:text-purple-400',
+  red: 'bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-400',
 };
 
-export function StatCard({ label, value, icon: Icon, trend, tone = 'brand' }: StatCardProps) {
+export function StatCard({ label, value, icon: Icon, trend, tone = 'brand', onClick }: StatCardProps) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-5 shadow-soft">
+    <div
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+      className={cn(
+        'rounded-xl border border-border bg-surface p-5 shadow-soft transition-all',
+        onClick && 'cursor-pointer hover:-translate-y-0.5 hover:shadow-soft-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500',
+      )}
+    >
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-text-muted">{label}</p>

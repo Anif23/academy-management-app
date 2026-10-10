@@ -8,11 +8,13 @@ import { useAllBatches } from '../hooks/useBatches';
 import { useAllEmployees } from '../hooks/useEmployees';
 import { useAllCourses } from '../hooks/useCourses';
 import { useWalkIn } from '../hooks/useWalkIns';
+import { useAuthStore } from '../store/authStore';
 
 export default function Registration() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const walkInId = searchParams.get('walkInId') ?? undefined;
+  const user = useAuthStore((s) => s.user);
 
   const { data: batches } = useAllBatches();
   const { data: employees } = useAllEmployees();
@@ -20,6 +22,12 @@ export default function Registration() {
   const { data: walkIn } = useWalkIn(walkInId);
   const counsellors = useMemo(() => employees?.filter((e) => e.type === 'Counsellor') ?? [], [employees]);
   const createMutation = useCreateStudent();
+
+  // A counsellor registering a student is always registering it under
+  // themselves — the backend enforces this regardless, so lock the field
+  // in the UI too rather than showing a picker that gets silently
+  // overridden.
+  const lockedCounsellor = (user?.role === 'STAFF' || user?.role === 'COUNSELLOR') && user.employeeId ? { id: user.employeeId, name: user.name } : undefined;
 
   return (
     <div>
@@ -38,12 +46,17 @@ export default function Registration() {
               address: walkIn?.location ?? '',
               qualification: walkIn?.qualification ?? '',
               courseId: walkIn?.courseInterestedId,
+              // The batch they picked during public registration (step 3)
+              // — this was previously silently dropped and never made it
+              // this far, forcing staff to re-ask and re-select it.
+              batchId: walkIn?.batchId ?? undefined,
               counsellorId: walkIn?.counsellorId,
               walkInId,
             }}
             courses={courses ?? []}
             batches={batches ?? []}
             counsellors={counsellors}
+            lockedCounsellor={lockedCounsellor}
             isSubmitting={createMutation.isPending}
             submitLabel="Register Student"
             onCancel={() => navigate('/students')}

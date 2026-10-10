@@ -29,12 +29,15 @@ const Navbar = () => {
     { name: 'Contact', href: '/#contact' },
   ];
 
-  const logoUrl = academy?.logoUrl ? `${serverBaseUrl}${academy.logoUrl}` : null;
+  const logoUrl = academy?.logoUrl
+    ? (/^https?:\/\//.test(academy.logoUrl) ? academy.logoUrl : `${serverBaseUrl}${academy.logoUrl}`)
+    : null;
      
   return (
     <nav
+      style={{ top: 'var(--ticker-h, 0px)' }}
       className={cn(
-          'fixed top-0 left-0 right-0 z-50 transition-all duration-300 px-6 py-4',
+          'fixed left-0 right-0 z-50 transition-[top,background-color,box-shadow] duration-300 px-6 py-4',
           hasRootPathOrHash && !isScrolled
             ? 'bg-primary py-5'
             : isScrolled
@@ -44,7 +47,7 @@ const Navbar = () => {
     >
       <div className="max-w-full mx-auto flex xl:px-12 items-center justify-between">
         {/* Logo */}
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.location.href = '/'}>
+        <a href="/" className="flex items-center gap-2" aria-label={`${academy?.name || 'Academy'} home`}>
           {logoUrl ? (
             <img src={logoUrl} alt={academy?.name} className={cn('w-14 h-14 object-contain rounded-lg transition-all duration-300', isScrolled ? "bg-transparent" : "bg-white" )} />
           ) : (
@@ -58,7 +61,7 @@ const Navbar = () => {
           )}>
             {academy?.name || 'AcademyPro'}
           </span>
-        </div>
+        </a>
 
         {/* Desktop Navigation */}
         <div className="hidden xl:flex items-center gap-8">
@@ -74,31 +77,40 @@ const Navbar = () => {
           <div className="flex items-center gap-4 ml-4">
             <a
               href="/register"
-              className="px-5 py-2 bg-accent text-white rounded-full text-sm font-semibold hover:bg-accent-dark transition-all hover:shadow-lg active:scale-95"
+              className="px-5 py-2 btn-gradient text-white rounded-full text-sm font-semibold active:scale-95"
             >
               Register
             </a>
             <a
               href={`https://wa.me/${academy?.whatsapp || 'your-number'}`}
+              target="_blank"
+              rel="noopener noreferrer"
               className={cn('p-2 hover:text-accent transition-colors', isScrolled ? "text-primary" : "text-white")}
-              title="WhatsApp"
+              title="Chat on WhatsApp"
+              aria-label="Chat on WhatsApp"
             >
-              <MessageSquare size={20} />
+              <MessageSquare size={20} aria-hidden="true" />
             </a>
           </div>
         </div>
 
         {/* Mobile Toggle */}
         <button
+          type="button"
           className={cn('xl:hidden p-2 text-primary', isScrolled ? "text-primary" : "bg-white rounded-lg")}
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={isMobileMenuOpen}
+          aria-controls="mobile-menu"
         >
-          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          {isMobileMenuOpen ? <X size={24} aria-hidden="true" /> : <Menu size={24} aria-hidden="true" />}
         </button>
       </div>
 
       {/* Mobile Menu */}
-      <div className={cn(
+      <div
+        id="mobile-menu"
+        className={cn(
         'xl:hidden absolute top-full left-0 right-0 bg-white border-t transition-all duration-300 overflow-hidden',
         isMobileMenuOpen ? 'max-h-screen py-6 px-6 opacity-100' : 'max-h-0 opacity-0'
       )}>

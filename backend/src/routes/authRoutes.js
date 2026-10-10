@@ -3,7 +3,7 @@ const authController = require('../controllers/authController');
 const { requireAuth } = require('../middleware/authMiddleware');
 const validate = require('../middleware/validateMiddleware');
 const { loginLimiter } = require('../middleware/rateLimitMiddleware');
-const { loginSchema, registerSchema, updateProfileSchema } = require('../validators/authValidators');
+const { loginSchema, registerSchema, updateProfileSchema, changePasswordSchema } = require('../validators/authValidators');
 
 const router = express.Router();
 
@@ -13,5 +13,11 @@ router.post('/refresh', authController.refresh);
 router.post('/logout', authController.logout);
 router.get('/me', requireAuth, authController.me);
 router.patch('/me', requireAuth, validate({ body: updateProfileSchema }), authController.updateMe);
+router.post(
+  '/change-password',
+  requireAuth,
+  validate({ body: changePasswordSchema }),
+  authController.changePassword,
+);
 
 module.exports = router;

@@ -11,6 +11,7 @@ import { useAttendanceByBatchDate, useMarkBulkAttendance } from '../hooks/useAtt
 import type { AttendanceStatus } from '../types';
 import { cn } from '../utils/cn';
 import { formatDate, initials, todayIso } from '../utils/format';
+import { useCan } from '../hooks/usePermission';
 
 const STATUS_OPTIONS: AttendanceStatus[] = ['Present', 'Absent', 'Leave'];
 
@@ -21,6 +22,8 @@ const STATUS_STYLES: Record<AttendanceStatus, string> = {
 };
 
 export default function Attendance() {
+  const can = useCan();
+  const canMark = can(['attendance:create', 'attendance:update']);
   const { data: batches } = useAllBatches();
   const { data: students } = useAllStudents();
   const [batchId, setBatchId] = useState('');
@@ -78,7 +81,7 @@ export default function Attendance() {
 
   return (
     <div>
-      <PageHeader title="Attendance" description="Mark and review daily attendance per batch." />
+      <PageHeader title="Attendance" description={canMark ? "Mark and review daily attendance per batch." : "Review daily attendance per batch (view only)."} />
 
       <Card className="mb-4">
         <CardBody>
@@ -124,7 +127,7 @@ export default function Attendance() {
           title="Mark Attendance"
           description={batchStudents.length ? `${batchStudents.length} student(s) eligible for this date` : undefined}
           action={
-            batchStudents.length > 0 ? (
+            batchStudents.length > 0 && canMark ? (
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => markAll('Present')}>
                   Mark All Present
@@ -170,9 +173,11 @@ export default function Attendance() {
                       key={status}
                       type="button"
                       onClick={() => setMark(student.id, status)}
+                      disabled={!canMark}
                       className={cn(
                         'rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
                         marks[student.id] === status ? STATUS_STYLES[status] : 'border-border text-text-secondary hover:bg-surface-hover',
+                        !canMark && 'cursor-default opacity-70 hover:bg-transparent',
                       )}
                     >
                       {status}
@@ -183,7 +188,7 @@ export default function Attendance() {
             ))}
           </div>
         )}
-        {batchStudents.length > 0 && (
+        {batchStudents.length > 0 && canMark && (
           <div className="flex justify-end border-t border-border px-5 py-4">
             <Button onClick={handleSave} loading={markMutation.isPending}>
               Save Attendance

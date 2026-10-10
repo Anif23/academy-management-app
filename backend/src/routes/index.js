@@ -18,11 +18,16 @@ const publicRoutes = require('./publicRoutes');
 const adminAcademyRoutes = require('./adminAcademyRoutes');
 const adminTestimonialRoutes = require('./adminTestimonialRoutes');
 const adminFaqRoutes = require('./adminFaqRoutes');
+const adminAnnouncementRoutes = require('./adminAnnouncementRoutes');
 const uploadRoutes = require('./uploadRoutes');
+const brandingRoutes = require('./brandingRoutes');
+const adminBrandingRoutes = require('./adminBrandingRoutes');
+const permissionsRoutes = require('./permissionsRoutes');
 
 const router = express.Router();
 
 router.use('/upload', uploadRoutes);
+router.use('/branding', brandingRoutes);
 router.use('/public', publicRoutes);
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
@@ -41,7 +46,10 @@ router.use('/search', searchRoutes);
 
 // Admin Content Management
 router.use('/admin/academy', adminAcademyRoutes);
+router.use('/admin/branding', adminBrandingRoutes);
+router.use('/admin/permissions', permissionsRoutes);
 router.use('/admin/testimonials', adminTestimonialRoutes);
 router.use('/admin/faqs', adminFaqRoutes);
+router.use('/admin/announcements', adminAnnouncementRoutes);
 
 module.exports = router;

@@ -1,6 +1,7 @@
 import { AcademySettingsForm } from '../features/academy-settings/AcademySettingsForm';
 import TestimonialsManager from '../features/academy-settings/TestimonialsManager';
 import FAQManager from '../features/academy-settings/FAQManager';
+import AnnouncementsManager from '../features/academy-settings/AnnouncementsManager';
 
 const AcademySettingsPage = () => {
   return (
@@ -33,6 +34,15 @@ const AcademySettingsPage = () => {
             Public FAQs
           </h2>
           <FAQManager />
+        </section>
+
+        <section>
+          <h2 className="text-2xl font-bold text-primary mb-6 flex items-center gap-2">
+            <span className="w-2 h-8 bg-accent rounded-full" />
+            Announcements & Offers Ticker
+          </h2>
+          <p className="mb-6 -mt-4 text-secondary">Runs as a scrolling banner across the top of the public website.</p>
+          <AnnouncementsManager />
         </section>
       </div>
     </div>

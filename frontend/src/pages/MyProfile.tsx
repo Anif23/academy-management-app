@@ -88,7 +88,15 @@ export default function MyProfile() {
         ))}
       </div>
 
-      {activeTab === 'Overview' && statsQuery.data && <StudentOverviewTab student={student} stats={statsQuery.data} />}
+      {activeTab === 'Overview' && statsQuery.data && (
+        <StudentOverviewTab
+          showAttention
+          student={student}
+          stats={statsQuery.data}
+          tasks={tasksQuery.data}
+          onViewFees={() => setActiveTab('Fees')}
+        />
+      )}
       {activeTab === 'Fees' && <StudentFeeTab fee={feeQuery.data} />}
       {activeTab === 'Attendance' && <StudentAttendanceTab records={attendanceQuery.data ?? []} />}
       {activeTab === 'Tasks' && <StudentTasksTab tasks={tasksQuery.data ?? []} />}

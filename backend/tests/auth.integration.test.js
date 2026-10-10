@@ -1,5 +1,6 @@
 process.env.JWT_ACCESS_SECRET = 'test_access_secret';
 process.env.JWT_REFRESH_SECRET = 'test_refresh_secret';
+process.env.REDIS_URL = '';
 process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/test';
 process.env.FRONTEND_URL = 'http://localhost:5173';
 

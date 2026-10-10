@@ -1,5 +1,5 @@
 const ApiError = require('../utils/ApiError');
-const { roleHasPermission } = require('../constants/roles');
+const { roleHasPermission } = require('../services/permissionsService');
 
 /**
  * requirePermission('students:update') → 403s any caller whose role doesn't

@@ -12,6 +12,7 @@ import { FieldError, FormRow, Input, Label, Select, Textarea } from '../../compo
 import { EmptyState } from '../../components/common/States';
 import { formatCurrency, formatDate, todayIso } from '../../utils/format';
 import { cn } from '../../utils/cn';
+import { useCan } from '../../hooks/usePermission';
 
 interface FeeFormProps {
   fee: FeeRecord;
@@ -21,7 +22,10 @@ interface FeeFormProps {
 }
 
 export function FeeForm({ fee, onUpdateDetails, onAddPayment, isSubmitting }: FeeFormProps) {
-  const [mode, setMode] = useState<'details' | 'payment'>('details');
+  const can = useCan();
+  const canEditDetails = can('fees:update');
+  const canPay = can('fees:create');
+  const [mode, setMode] = useState<'details' | 'payment'>(!canEditDetails && canPay ? 'payment' : 'details');
   const summary = computeFeeSummary(fee);
   const paymentStatus = summary.pendingAmount <= 0 ? 'Paid' : summary.paidAmount > 0 ? 'Partial' : 'Pending';
   const paymentStatusTone = paymentStatus === 'Paid' ? 'green' : paymentStatus === 'Partial' ? 'amber' : 'red';
@@ -83,6 +87,7 @@ export function FeeForm({ fee, onUpdateDetails, onAddPayment, isSubmitting }: Fe
         </div>
       )}
 
+      {canEditDetails && canPay && (
       <div className="flex gap-1 rounded-lg border border-border bg-surface-muted p-1">
         <button
           type="button"
@@ -101,9 +106,12 @@ export function FeeForm({ fee, onUpdateDetails, onAddPayment, isSubmitting }: Fe
           Record Payment
         </button>
       </div>
+      )}
 
+      {(canEditDetails || !canPay) && (
       <div className={mode === 'details' ? 'block' : 'hidden'}>
         <form onSubmit={detailsForm.handleSubmit(onUpdateDetails)} noValidate className="space-y-4">
+          <fieldset disabled={!canEditDetails} className="space-y-4 border-0 p-0">
           <FormRow>
             <div>
               <Label htmlFor="fee-course" required>
@@ -126,14 +134,19 @@ export function FeeForm({ fee, onUpdateDetails, onAddPayment, isSubmitting }: Fe
             <Label htmlFor="fee-remarks">Payment Remarks</Label>
             <Textarea id="fee-remarks" rows={3} {...detailsForm.register('remarks')} />
           </div>
-          <div className="flex justify-end pt-2">
-            <Button type="submit" loading={isSubmitting}>
-              Save Fee Details
-            </Button>
-          </div>
+          </fieldset>
+          {canEditDetails && (
+            <div className="flex justify-end pt-2">
+              <Button type="submit" loading={isSubmitting}>
+                Save Fee Details
+              </Button>
+            </div>
+          )}
         </form>
       </div>
+      )}
 
+      {canPay && (
       <div className={mode === 'payment' ? 'block' : 'hidden'}>
         <form onSubmit={paymentForm.handleSubmit(onAddPayment)} noValidate className="space-y-4">
           <FormRow>
@@ -184,6 +197,7 @@ export function FeeForm({ fee, onUpdateDetails, onAddPayment, isSubmitting }: Fe
           </div>
         </form>
       </div>
+      )}
 
       <div className="border-t border-border pt-4">
         <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-text-muted">

@@ -7,7 +7,7 @@ export interface ManagedUser {
   id: string;
   name: string;
   email: string;
-  role: 'ADMIN' | 'STAFF' | 'STUDENT';
+  role: 'ADMIN' | 'STAFF' | 'COUNSELLOR' | 'STUDENT';
   department: string;
   phone: string;
   status: 'Active' | 'Inactive';
@@ -21,7 +21,7 @@ export interface CreateUserInput {
   name: string;
   email: string;
   password: string;
-  role: 'ADMIN' | 'STAFF' | 'STUDENT';
+  role: 'ADMIN' | 'STAFF' | 'COUNSELLOR' | 'STUDENT';
   department?: string;
   phone?: string;
   employeeId?: string;

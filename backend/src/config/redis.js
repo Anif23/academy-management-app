@@ -23,6 +23,22 @@ if (env.redisUrl) {
   });
 }
 
+// A dedicated connection for pub/sub — once a connection issues SUBSCRIBE it
+// can't be used for normal commands, so this is created lazily and kept
+// separate from `client`. Used to keep the permissions cache (and similar
+// in-process caches) consistent across multiple backend instances: one
+// instance changes a permission, every instance (including itself) reloads.
+let subscriber = null;
+function getSubscriber() {
+  if (!env.redisUrl) return null;
+  if (!subscriber) {
+    subscriber = new Redis(env.redisUrl, { lazyConnect: true, retryStrategy: (times) => Math.min(times * 200, 2000) });
+    subscriber.on('error', (err) => logger.warn({ err: err.message }, 'Redis pub/sub connection error'));
+    subscriber.connect().catch((err) => logger.warn({ err: err.message }, 'Redis pub/sub unavailable at startup'));
+  }
+  return subscriber;
+}
+
 /**
  * Safe wrapper so callers never need to check "is Redis configured/up" —
  * every operation just resolves to a no-op if Redis isn't available.
@@ -64,6 +80,28 @@ const redis = {
       return null;
     }
   },
+  /** Notify every backend instance subscribed to `channel` (no-op without Redis — fine for a single instance). */
+  async publish(channel, message) {
+    if (!redis.isEnabled()) return;
+    try {
+      await client.publish(channel, message);
+    } catch {
+      // no-op
+    }
+  },
+  /** `handler` fires once per message, on every instance including the publisher. Returns an unsubscribe function. */
+  subscribe(channel, handler) {
+    const sub = getSubscriber();
+    if (!sub) return () => {};
+    sub.subscribe(channel).catch((err) => logger.warn({ err: err.message }, `Failed to subscribe to ${channel}`));
+    const onMessage = (ch, message) => {
+      if (ch === channel) handler(message);
+    };
+    sub.on('message', onMessage);
+    return () => sub.off('message', onMessage);
+  },
+  /** The raw ioredis client, for libraries (e.g. rate-limit-redis) that need it directly. Null if Redis isn't configured. */
+  getRawClient: () => client,
 };
 
 module.exports = redis;

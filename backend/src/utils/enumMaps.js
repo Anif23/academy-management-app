@@ -112,10 +112,17 @@ const TaskPriorityMap = createEnumMap([
   ['High', 'HIGH'],
 ]);
 
-const TaskStatusMap = createEnumMap([
+// Persisted submission states. "Overdue" is deliberately NOT one of these —
+// it's derived at read time in taskService (Pending/Needs Revision + past
+// due date) since it depends on "now", not stored data. It's still a valid
+// value on the *wire* (API responses can report status: "Overdue"), so
+// filters compare against it directly rather than through this map.
+const SubmissionStatusMap = createEnumMap([
   ['Pending', 'PENDING'],
-  ['In Progress', 'IN_PROGRESS'],
-  ['Completed', 'COMPLETED'],
+  ['Submitted', 'SUBMITTED'],
+  ['Needs Revision', 'NEEDS_REVISION'],
+  ['Resubmitted', 'RESUBMITTED'],
+  ['Reviewed', 'REVIEWED'],
 ]);
 
 module.exports = {
@@ -133,5 +140,5 @@ module.exports = {
   AttendanceStatusMap,
   ClassReportTaskStatusMap,
   TaskPriorityMap,
-  TaskStatusMap,
+  SubmissionStatusMap,
 };

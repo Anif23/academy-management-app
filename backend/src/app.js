@@ -34,16 +34,22 @@ app.use(
 app.use(
   cors({
     origin: (origin, callback) => {
-      const allowedOrigins = [
-        env.frontendUrl,              
-        env.publicFrontendUrl, 
-      ];
+      const allowedOrigins = [env.frontendUrl, env.publicFrontendUrl];
 
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
+      // No Origin header (server-to-server, curl, mobile apps) — allow.
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+
+      // In non-production, be forgiving of any localhost/127.0.0.1 port —
+      // during local dev it's extremely common for Vite to pick a
+      // different port than whatever's in .env (5173 taken -> 5174, etc.),
+      // and a silent CORS rejection there is a confusing dead end that
+      // looks like "nothing works" with no useful error message.
+      if (!env.isProduction && /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)) {
+        return callback(null, true);
       }
+
+      callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
   }),

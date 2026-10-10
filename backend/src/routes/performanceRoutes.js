@@ -12,20 +12,20 @@ const router = express.Router();
 router.use(requireAuth);
 
 router.get('/me', requirePermission('performance:read-own'), performanceController.getMine);
-router.get('/all', requirePermission('performance:manage'), performanceController.getAllRaw);
+router.get('/all', requirePermission('performance:read'), performanceController.getAllRaw);
 router.get(
   '/student/:studentId',
-  requirePermission('performance:manage', 'performance:read-own'),
+  requirePermission('performance:read', 'performance:read-own'),
   validate({ params: z.object({ studentId: z.string().min(1) }) }),
   performanceController.getByStudent,
 );
-router.post('/', requirePermission('performance:manage'), validate({ body: createPerformanceSchema }), performanceController.create);
+router.post('/', requirePermission('performance:create'), validate({ body: createPerformanceSchema }), performanceController.create);
 router.patch(
   '/:id',
-  requirePermission('performance:manage'),
+  requirePermission('performance:update'),
   validate({ params: idParamSchema, body: updatePerformanceSchema }),
   performanceController.update,
 );
-router.delete('/:id', requirePermission('performance:manage'), validate({ params: idParamSchema }), performanceController.remove);
+router.delete('/:id', requirePermission('performance:delete'), validate({ params: idParamSchema }), performanceController.remove);
 
 module.exports = router;

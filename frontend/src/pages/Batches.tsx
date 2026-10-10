@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, Plus, Trash2, Users } from 'lucide-react';
+import { Eye, Pencil, Plus, Trash2, Users } from 'lucide-react';
 import { PageHeader } from '../components/common/PageHeader';
 import { DataTable } from '../components/common/DataTable';
 import type { DataTableColumn } from '../components/common/DataTable';
@@ -16,9 +16,14 @@ import { useAllEmployees } from '../hooks/useEmployees';
 import { useAllCourses } from '../hooks/useCourses';
 import type { Batch } from '../types';
 import { formatDate } from '../utils/format';
+import { useCan } from '../hooks/usePermission';
 
 export default function Batches() {
+  const can = useCan();
   const navigate = useNavigate();
+  const canCreate = can('batches:create');
+  const canUpdate = can('batches:update');
+  const canDelete = can('batches:delete');
   const table = useTableState();
   const { data, isLoading, isError, refetch } = useBatches(table.params);
   const { data: employees } = useAllEmployees();
@@ -90,18 +95,33 @@ export default function Batches() {
           >
             <Eye className="h-4 w-4 text-text-muted" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(e) => {
-              e.stopPropagation();
-              setDeleteError('');
-              setDeleteTarget(row);
-            }}
-            aria-label="Delete batch"
-          >
-            <Trash2 className="h-4 w-4 text-red-500" />
-          </Button>
+          {canUpdate && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDrawerState({ mode: 'edit', batch: row });
+                }}
+                aria-label="Edit batch"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+)}
+{canDelete && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeleteError('');
+                  setDeleteTarget(row);
+                }}
+                aria-label="Delete batch"
+              >
+                <Trash2 className="h-4 w-4 text-red-500" />
+              </Button>
+)}
         </div>
       ),
     },
@@ -111,12 +131,14 @@ export default function Batches() {
     <div>
       <PageHeader
         title="Batch Management"
-        description="Create and manage training batches, schedules, and trainer allocation."
+        description={canCreate || canUpdate ? 'Create and manage training batches, schedules, and trainer allocation.' : 'Batches you can view.'}
         action={
-          <Button onClick={() => setDrawerState({ mode: 'create' })}>
-            <Plus className="h-4 w-4" />
-            New Batch
-          </Button>
+          canCreate ? (
+            <Button onClick={() => setDrawerState({ mode: 'create' })}>
+              <Plus className="h-4 w-4" />
+              New Batch
+            </Button>
+          ) : undefined
         }
       />
 
@@ -157,7 +179,7 @@ export default function Batches() {
         onPageChange={table.setPage}
         onPageSizeChange={table.setPageSize}
         emptyTitle="No batches created yet"
-        onRowClick={(row) => setDrawerState({ mode: 'edit', batch: row })}
+        onRowClick={(row) => (canUpdate ? setDrawerState({ mode: 'edit', batch: row }) : navigate(`/students?batchId=${row.id}`))}
       />
 
       <Drawer

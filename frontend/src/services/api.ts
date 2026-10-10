@@ -6,16 +6,19 @@ import type {
   Batch,
   ClassReport,
   CourseRecord,
+  CreateTaskInput,
   DashboardStats,
   Employee,
   FeeRecord,
   FeeSummary,
   GlobalSearchResults,
+  MyTask,
   PaymentEntry,
   PerformanceRecord,
   Student,
   StudentDashboardStats,
-  StudentTask,
+  Task,
+  UploadedFileRef,
   WalkIn,
 } from '../types';
 
@@ -208,23 +211,27 @@ export const coursesApi = {
 // Tasks
 // --------------------------------------------------------------------------
 
-const taskCrud = createHttpCrudService<StudentTask>('/tasks');
+const taskCrud = createHttpCrudService<Task>('/tasks');
 
 export const tasksApi = {
   ...taskCrud,
-  async getByStudent(studentId: string) {
-    return unwrap<StudentTask[]>(httpClient.get(`/tasks/student/${studentId}`));
-  },
-  async createTask(input: Omit<StudentTask, 'id' | 'createdAt' | 'updatedAt'>) {
-    return taskCrud.create(input);
-  },
-  async createBatchTask(
-    input: Omit<StudentTask, 'id' | 'studentId' | 'createdAt' | 'updatedAt' | 'batchAssignmentId'> & { batchId: string },
-  ) {
-    return unwrap<StudentTask[]>(httpClient.post('/tasks/batch', input));
+  async createTask(input: CreateTaskInput) {
+    return unwrap<Task>(httpClient.post('/tasks', input));
   },
   async getMine() {
-    return unwrap<StudentTask[]>(httpClient.get('/tasks/me'));
+    return unwrap<MyTask[]>(httpClient.get('/tasks/me'));
+  },
+  async getByStudent(studentId: string) {
+    return unwrap<MyTask[]>(httpClient.get(`/tasks/by-student/${studentId}`));
+  },
+  async getMySubmission(taskId: string) {
+    return unwrap<MyTask>(httpClient.get(`/tasks/me/${taskId}`));
+  },
+  async submit(taskId: string, input: { content: string; files: UploadedFileRef[] }) {
+    return unwrap<MyTask>(httpClient.post(`/tasks/me/${taskId}/submit`, input));
+  },
+  async review(submissionId: string, input: { decision: 'approve' | 'needs_revision'; feedback: string }) {
+    return unwrap<Task>(httpClient.post(`/tasks/submissions/${submissionId}/review`, input));
   },
 };
 

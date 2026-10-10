@@ -1,18 +1,14 @@
 const prisma = require('../config/prisma');
-const ApiError = require('../utils/ApiError');
+const { cached } = require('../utils/cache');
+const { CACHE_KEYS } = require('../constants/cacheKeys');
 
 async function getActiveFAQs() {
-  return await prisma.fAQ.findMany({
-    where: { isActive: true },
-    orderBy: { order: 'asc' },
-  });
+  return cached(CACHE_KEYS.publicFaqs, 120, () =>
+    prisma.fAQ.findMany({
+      where: { isActive: true },
+      orderBy: { order: 'asc' },
+    }),
+  );
 }
 
-async function create(input) {
-  const faq = await prisma.fAQ.create({
-    data: input,
-  });
-  return faq;
-}
-
-module.exports = { getActiveFAQs, create };
+module.exports = { getActiveFAQs };

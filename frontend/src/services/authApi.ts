@@ -35,4 +35,12 @@ export const authApi = {
       throw new Error(toErrorMessage(error));
     }
   },
+  async changePassword(input: { currentPassword: string; newPassword: string; confirmPassword: string }): Promise<AuthUser> {
+    try {
+      const response = await httpClient.post('/auth/change-password', input);
+      return response.data.data;
+    } catch (error) {
+      throw new Error(toErrorMessage(error));
+    }
+  },
 };

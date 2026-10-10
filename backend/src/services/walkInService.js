@@ -2,6 +2,7 @@ const prisma = require('../config/prisma');
 const ApiError = require('../utils/ApiError');
 const { LeadSourceMap, LeadStatusMap } = require('../utils/enumMaps');
 const { parsePagination, buildPaginatedResult } = require('../utils/pagination');
+const { isScopedRole } = require('../constants/roles');
 
 function toPublic(walkIn) {
   return {
@@ -11,6 +12,8 @@ function toPublic(walkIn) {
     email: walkIn.email,
     courseInterested: walkIn.courseInterested?.name,
     courseInterestedId: walkIn.courseInterestedId,
+    batchId: walkIn.batchId,
+    batch: walkIn.batch ? { id: walkIn.batch.id, name: walkIn.batch.name } : undefined,
     qualification: walkIn.qualification,
     location: walkIn.location,
     source: LeadSourceMap.fromDb(walkIn.source),
@@ -25,9 +28,9 @@ function toPublic(walkIn) {
   };
 }
 
-const includeRelations = { courseInterested: true, convertedStudent: { select: { id: true } } };
+const includeRelations = { courseInterested: true, batch: true, convertedStudent: { select: { id: true } } };
 
-async function getAll(query) {
+async function getAll(query, actor) {
   const { page, pageSize, skip, take } = parsePagination(query);
   const where = {
     ...(query.search
@@ -41,6 +44,12 @@ async function getAll(query) {
       : {}),
     ...(query.status ? { status: LeadStatusMap.toDb(query.status) } : {}),
   };
+
+  // Staff only ever see leads assigned to them as counsellor — not the
+  // whole academy's pipeline.
+  if (isScopedRole(actor?.role)) {
+    where.counsellorId = actor.employeeId;
+  }
 
   const [rows, total] = await Promise.all([
     prisma.walkIn.findMany({ where, skip, take, include: includeRelations, orderBy: { createdAt: 'desc' } }),
@@ -68,6 +77,7 @@ async function create(input) {
       mobile: input.mobile,
       email: input.email,
       courseInterestedId: input.courseInterestedId,
+      batchId: input.batchId || null,
       qualification: input.qualification,
       location: input.location,
       source: LeadSourceMap.toDb(input.source),
@@ -99,6 +109,7 @@ async function update(id, patch) {
   if (patch.mobile !== undefined) data.mobile = patch.mobile;
   if (patch.email !== undefined) data.email = patch.email;
   if (patch.courseInterestedId !== undefined) data.courseInterestedId = patch.courseInterestedId;
+  if (patch.batchId !== undefined) data.batchId = patch.batchId || null;
   if (patch.qualification !== undefined) data.qualification = patch.qualification;
   if (patch.location !== undefined) data.location = patch.location;
   if (patch.source !== undefined) data.source = LeadSourceMap.toDb(patch.source);

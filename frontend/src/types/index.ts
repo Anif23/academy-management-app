@@ -36,7 +36,7 @@ export type AttendanceStatus = 'Present' | 'Absent' | 'Leave';
 
 export type TaskPriority = 'Low' | 'Medium' | 'High';
 
-export type TaskStatus = 'Pending' | 'In Progress' | 'Completed';
+export type SubmissionStatus = 'Pending' | 'Submitted' | 'Needs Revision' | 'Resubmitted' | 'Reviewed' | 'Overdue';
 
 export type ClassReportTaskStatus = 'Not Given' | 'Given' | 'Reviewed';
 
@@ -79,6 +79,8 @@ export interface WalkIn {
   email: string;
   courseInterested: Course;
   courseInterestedId: string;
+  batchId?: string | null;
+  batch?: { id: string; name: string };
   qualification: string;
   location: string;
   source: LeadSource;
@@ -207,23 +209,84 @@ export interface ClassReport {
 }
 
 // ==========================================================================
-// Module 9 — Student tasks
+// Module 9 — Tasks & submissions
 // ==========================================================================
 
-export interface StudentTask {
+export interface UploadedFileRef {
+  id?: string;
+  url: string;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  uploadedAt?: string;
+}
+
+export interface TaskSubmission {
   id: string;
+  taskId: string;
   studentId: string;
-  batchId?: string;
-  batchAssignmentId?: string;
+  student?: { id: string; name: string; studentCode: string };
+  status: SubmissionStatus;
+  content: string;
+  submittedAt: string | null;
+  trainerFeedback: string;
+  reviewedAt: string | null;
+  reviewedById: string | null;
+  files: UploadedFileRef[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TaskSubmissionCounts {
+  total: number;
+  submitted: number;
+  reviewed: number;
+  pending: number;
+  needsRevision: number;
+  overdue: number;
+}
+
+export interface Task {
+  id: string;
   title: string;
   description: string;
   assignedDate: string;
   dueDate: string;
   priority: TaskPriority;
-  status: TaskStatus;
-  trainerRemarks: string;
+  batchId?: string | null;
+  batch?: { id: string; name: string; batchCode: string };
+  createdById?: string | null;
+  assignmentType: 'individual' | 'batch';
+  attachments: UploadedFileRef[];
+  submissionCounts: TaskSubmissionCounts;
+  submissions: TaskSubmission[];
   createdAt: string;
   updatedAt: string;
+}
+
+/** A student's own task list item: their submission, plus the task info. */
+export interface MyTask extends TaskSubmission {
+  task: {
+    id: string;
+    title: string;
+    description: string;
+    assignedDate: string;
+    dueDate: string;
+    priority: TaskPriority;
+    batch?: { id: string; name: string };
+    attachments: UploadedFileRef[];
+  };
+}
+
+export interface CreateTaskInput {
+  title: string;
+  description: string;
+  assignedDate: string;
+  dueDate: string;
+  priority: TaskPriority;
+  studentId?: string;
+  batchId?: string;
+  attachments?: UploadedFileRef[];
 }
 
 // ==========================================================================
@@ -267,10 +330,15 @@ export interface AuthUser {
   name: string;
   email: string;
   role: string;
+  /** Permission keys granted to this user's role (from the server). UI hints only. */
+  permissions: string[];
   department: string;
   phone: string;
   status: 'Active';
   avatar: string;
+  mustChangePassword: boolean;
+  studentId?: string | null;
+  employeeId?: string | null;
 }
 
 // ==========================================================================

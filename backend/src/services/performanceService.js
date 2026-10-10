@@ -1,4 +1,7 @@
 const prisma = require('../config/prisma');
+const ApiError = require('../utils/ApiError');
+const { getStaffStudentIds } = require('../utils/staffScope');
+const { isScopedRole } = require('../constants/roles');
 
 function computeOverall(record) {
   const { technicalKnowledge, practicalSkills, communication, attendance, taskCompletion, behaviour } = record;
@@ -24,14 +27,25 @@ function toPublic(record) {
   return { ...plain, overall: computeOverall(plain) };
 }
 
-async function getAllRaw() {
-  const rows = await prisma.performance.findMany({ orderBy: { date: 'desc' } });
+async function getAllRaw(actor) {
+  let where = {};
+  if (isScopedRole(actor?.role)) {
+    const allowedStudentIds = await getStaffStudentIds(actor.employeeId);
+    where = { studentId: { in: allowedStudentIds } };
+  }
+  const rows = await prisma.performance.findMany({ where, orderBy: { date: 'desc' } });
   return rows.map(toPublic);
 }
 
 async function getByStudent(studentId) {
   const rows = await prisma.performance.findMany({ where: { studentId }, orderBy: { date: 'desc' } });
   return rows.map(toPublic);
+}
+
+async function getById(id) {
+  const record = await prisma.performance.findUnique({ where: { id } });
+  if (!record) throw ApiError.notFound('Performance record not found.');
+  return toPublic(record);
 }
 
 async function create(input) {
@@ -48,4 +62,4 @@ async function remove(id) {
   await prisma.performance.delete({ where: { id } });
 }
 
-module.exports = { getAllRaw, getByStudent, create, update, remove, computeOverall };
+module.exports = { getAllRaw, getByStudent, getById, create, update, remove, computeOverall };

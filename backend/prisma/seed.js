@@ -143,6 +143,24 @@ async function main() {
     },
   });
 
+  // Demo counsellor login (own role, own permission set).
+  const counsellorEmployee = counsellors[0];
+  if (counsellorEmployee) {
+    await prisma.user.upsert({
+      where: { email: 'counsellor@academypro.com' },
+      update: {},
+      create: {
+        name: counsellorEmployee.name,
+        email: 'counsellor@academypro.com',
+        passwordHash: await bcrypt.hash('counsellor123', 12),
+        role: 'COUNSELLOR',
+        department: 'Admissions',
+        phone: counsellorEmployee.phone,
+        employee: { connect: { id: counsellorEmployee.id } },
+      },
+    });
+  }
+
   // --- Batches ------------------------------------------------------------
   const batchConfigs = [
     { course: 'Full Stack Development', code: 'FS-FEB-01', startOffset: -150, endOffset: 30, status: 'ONGOING', timing: '9:00 AM - 11:00 AM', days: ['Mon', 'Wed', 'Fri'] },
@@ -333,27 +351,76 @@ async function main() {
     });
   }
 
-  // --- Tasks ------------------------------------------------------------
+  // --- Tasks --------------------------------------------------------------
+  // One Task per assignment (individual or batch), with a TaskSubmission
+  // per assigned student — mirrors what taskService.create() does at runtime.
   const priorities = ['LOW', 'MEDIUM', 'HIGH'];
-  const taskStatuses = ['PENDING', 'IN_PROGRESS', 'COMPLETED'];
+  const submissionStatuses = ['PENDING', 'SUBMITTED', 'NEEDS_REVISION', 'RESUBMITTED', 'REVIEWED'];
   const taskTitles = ['Build a responsive landing page', 'Write unit tests for module', 'Create wireframes for dashboard', 'Prepare presentation deck', 'Implement CRUD API', 'Analyze sample dataset'];
-  for (let i = 0; i < students.length; i++) {
-    const taskCount = 1 + (i % 3);
-    for (let t = 0; t < taskCount; t++) {
-      const seed = i * 3 + t;
-      await prisma.task.create({
-        data: {
-          studentId: students[i].id,
-          title: pick(taskTitles, seed),
-          description: 'Complete the assigned task and submit before the due date for review.',
-          assignedDate: daysAgo(10 - t),
-          dueDate: daysFromNow(t * 2 + 1),
-          priority: pick(priorities, seed),
-          status: pick(taskStatuses, seed),
-          trainerRemarks: pick(['Good progress so far.', '', 'Needs improvement on structure.'], seed),
-        },
-      });
-    }
+  const sampleFeedback = ['Good progress so far.', '', 'Needs improvement on structure — please revise and resubmit.'];
+
+  // A couple of batch-wide tasks: one Task, one TaskSubmission per active
+  // student in that batch.
+  for (let b = 0; b < Math.min(2, batches.length); b++) {
+    const batch = batches[b];
+    const batchStudents = students.filter((s) => s.batchId === batch.id);
+    if (batchStudents.length === 0) continue;
+
+    const task = await prisma.task.create({
+      data: {
+        title: pick(taskTitles, b),
+        description: 'Complete the assigned task and submit before the due date for review.',
+        assignedDate: daysAgo(10),
+        dueDate: daysFromNow(b === 0 ? -1 : 5), // one already overdue, one still open
+        priority: pick(priorities, b),
+        batchId: batch.id,
+        createdById: batch.trainerId,
+      },
+    });
+
+    await prisma.taskSubmission.createMany({
+      data: batchStudents.map((s, i) => {
+        const status = pick(submissionStatuses, i);
+        const isSubmitted = status !== 'PENDING';
+        return {
+          taskId: task.id,
+          studentId: s.id,
+          status,
+          content: isSubmitted ? 'Here is my submission — let me know if anything needs changes.' : null,
+          submittedAt: isSubmitted ? daysAgo(2) : null,
+          trainerFeedback: status === 'REVIEWED' || status === 'NEEDS_REVISION' ? pick(sampleFeedback, i) : null,
+          reviewedAt: status === 'REVIEWED' || status === 'NEEDS_REVISION' ? daysAgo(1) : null,
+          reviewedById: status === 'REVIEWED' || status === 'NEEDS_REVISION' ? batch.trainerId : null,
+        };
+      }),
+    });
+  }
+
+  // A few individual tasks assigned to specific students.
+  for (let i = 0; i < Math.min(4, students.length); i++) {
+    const seed = i + 10;
+    const status = pick(submissionStatuses, seed);
+    const isSubmitted = status !== 'PENDING';
+    const task = await prisma.task.create({
+      data: {
+        title: pick(taskTitles, seed),
+        description: 'Complete the assigned task and submit before the due date for review.',
+        assignedDate: daysAgo(6),
+        dueDate: daysFromNow(3),
+        priority: pick(priorities, seed),
+        createdById: pick(trainers, seed)?.id,
+      },
+    });
+
+    await prisma.taskSubmission.create({
+      data: {
+        taskId: task.id,
+        studentId: students[i].id,
+        status,
+        content: isSubmitted ? 'Submitting my work for this task.' : null,
+        submittedAt: isSubmitted ? daysAgo(1) : null,
+      },
+    });
   }
 
   console.log('Seed complete.');

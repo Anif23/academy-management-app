@@ -1,5 +1,6 @@
 import { forwardRef } from 'react';
 import type { InputHTMLAttributes, LabelHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 const fieldBaseClasses =
@@ -41,9 +42,21 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(({ className, error, children, ...props }, ref) => (
-  <select ref={ref} className={cn(fieldBaseClasses, 'h-10 appearance-none bg-no-repeat', error && 'border-red-400 focus:ring-red-400', className)} {...props}>
-    {children}
-  </select>
+  <div className="group relative">
+    <select
+      ref={ref}
+      className={cn(
+        fieldBaseClasses,
+        'h-10 appearance-none bg-no-repeat pr-9 cursor-pointer',
+        error && 'border-red-400 focus:ring-red-400',
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </select>
+    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted transition-transform duration-200 group-focus-within:rotate-180 group-focus-within:text-brand-500" />
+  </div>
 ));
 Select.displayName = 'Select';
 

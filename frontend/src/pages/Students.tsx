@@ -18,10 +18,12 @@ import { useAllCourses } from '../hooks/useCourses';
 import { useAuthStore } from '../store/authStore';
 import type { Student } from '../types';
 import { formatDate, initials } from '../utils/format';
+import { useCan } from '../hooks/usePermission';
 
 const STATUSES = ['Active', 'On Hold', 'Completed', 'Dropped'];
 
 export default function Students() {
+  const can = useCan();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const batchIdFilter = searchParams.get('batchId') ?? '';
@@ -84,7 +86,8 @@ export default function Students() {
       className: 'text-right',
       render: (row) => (
         <div className="flex items-center justify-end gap-1">
-          <Button
+          {can('students:update') && (
+<Button
             variant="ghost"
             size="icon"
             onClick={(e) => {
@@ -95,7 +98,8 @@ export default function Students() {
           >
             <Pencil className="h-4 w-4 text-text-muted" />
           </Button>
-          {isAdmin && (
+)}
+          {can('students:delete') && (
             <Button
               variant="ghost"
               size="icon"
@@ -117,14 +121,14 @@ export default function Students() {
     <div>
       <PageHeader
         title="Students"
-        description="Browse and manage all registered students."
+        description={isAdmin ? 'Browse and manage all registered students.' : 'Students in your batches, and students you counsel.'}
         action={
-          isAdmin ? (
-            <Button onClick={() => navigate('/registration')}>
-              <Plus className="h-4 w-4" />
-              Register Student
-            </Button>
-          ) : undefined
+          can('students:create') ? (
+<Button onClick={() => navigate('/registration')}>
+            <Plus className="h-4 w-4" />
+            Register Student
+          </Button>
+) : undefined
         }
       />
 

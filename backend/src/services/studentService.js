@@ -3,6 +3,8 @@ const ApiError = require('../utils/ApiError');
 const { hashPassword } = require('../utils/password');
 const { GenderMap, StudentModeMap, StudentStatusMap } = require('../utils/enumMaps');
 const { parsePagination, buildPaginatedResult } = require('../utils/pagination');
+const { getStaffBatchIds } = require('../utils/staffScope');
+const { isScopedRole } = require('../constants/roles');
 
 function toPublic(student) {
   return {
@@ -37,23 +39,46 @@ async function nextStudentCode() {
   return `STU-2026-${(count + 1).toString().padStart(5, '0')}`;
 }
 
-async function getAll(query) {
+async function getAll(query, actor) {
   const { page, pageSize, skip, take } = parsePagination(query);
+  // Each filter's OR-group (search text, staff scoping) is kept in its
+  // own array element and combined with AND, so "matches the search" and
+  // "belongs to this staff member" are never accidentally merged into one
+  // OR — that would let a search match leak in students outside scope.
+  const and = [];
+  if (query.search) {
+    and.push({
+      OR: [
+        { name: { contains: query.search, mode: 'insensitive' } },
+        { studentCode: { contains: query.search, mode: 'insensitive' } },
+        { email: { contains: query.search, mode: 'insensitive' } },
+        { mobile: { contains: query.search, mode: 'insensitive' } },
+      ],
+    });
+  }
+
   const where = {
-    ...(query.search
-      ? {
-          OR: [
-            { name: { contains: query.search, mode: 'insensitive' } },
-            { studentCode: { contains: query.search, mode: 'insensitive' } },
-            { email: { contains: query.search, mode: 'insensitive' } },
-            { mobile: { contains: query.search, mode: 'insensitive' } },
-          ],
-        }
-      : {}),
     ...(query.status ? { status: StudentStatusMap.toDb(query.status) } : {}),
     ...(query.course ? { course: { name: query.course } } : {}),
     ...(query.batchId ? { batchId: query.batchId } : {}),
   };
+
+  // Staff only see students in batches assigned to them, or students
+  // they're personally the counsellor for (a fresh admission may not be
+  // in a batch yet) — never the whole academy roster.
+  if (isScopedRole(actor?.role)) {
+    const allowedBatchIds = await getStaffBatchIds(actor.employeeId);
+    if (query.batchId) {
+      // They asked for a specific batch — only honor it if it's theirs.
+      if (!allowedBatchIds.includes(query.batchId)) {
+        return buildPaginatedResult([], 0, page, pageSize);
+      }
+    } else {
+      and.push({ OR: [{ batchId: { in: allowedBatchIds } }, { counsellorId: actor.employeeId }] });
+    }
+  }
+
+  if (and.length > 0) where.AND = and;
 
   const [rows, total] = await Promise.all([
     prisma.student.findMany({ where, skip, take, include: includeRelations, orderBy: { createdAt: 'desc' } }),
@@ -63,8 +88,13 @@ async function getAll(query) {
   return buildPaginatedResult(rows.map(toPublic), total, page, pageSize);
 }
 
-async function getAllRaw() {
-  const rows = await prisma.student.findMany({ include: includeRelations, orderBy: { createdAt: 'desc' } });
+async function getAllRaw(actor) {
+  let where = {};
+  if (isScopedRole(actor?.role)) {
+    const allowedBatchIds = await getStaffBatchIds(actor.employeeId);
+    where = { OR: [{ batchId: { in: allowedBatchIds } }, { counsellorId: actor.employeeId }] };
+  }
+  const rows = await prisma.student.findMany({ where, include: includeRelations, orderBy: { createdAt: 'desc' } });
   return rows.map(toPublic);
 }
 
@@ -74,9 +104,23 @@ async function getById(id) {
   return toPublic(student);
 }
 
-async function create(input) {
+async function create(input, actor) {
   const course = await prisma.course.findUnique({ where: { id: input.courseId } });
   if (!course) throw ApiError.badRequest('Selected course does not exist.', 'INVALID_COURSE');
+
+  // A staff member registering a student is registering one for
+  // themselves as counsellor — never whoever the client payload claims,
+  // and never a batch they don't actually train.
+  let counsellorId = input.counsellorId;
+  if (isScopedRole(actor?.role)) {
+    counsellorId = actor.employeeId;
+    if (actor.role === 'STAFF' && input.batchId) {
+      const allowedBatchIds = await getStaffBatchIds(actor.employeeId);
+      if (!allowedBatchIds.includes(input.batchId)) {
+        throw ApiError.forbidden("You can only register a student into a batch assigned to you.", 'NOT_YOUR_BATCH');
+      }
+    }
+  }
 
   const studentCode = await nextStudentCode();
 
@@ -101,7 +145,7 @@ async function create(input) {
         joiningDate: input.joiningDate,
         batchId: input.batchId,
         mode: StudentModeMap.toDb(input.mode),
-        counsellorId: input.counsellorId,
+        counsellorId,
         status: StudentStatusMap.toDb(input.status),
         walkInId: input.walkInId || null,
       },
@@ -138,6 +182,7 @@ async function create(input) {
           passwordHash: await hashPassword(created.email),
           role: 'STUDENT',
           phone: created.mobile,
+          mustChangePassword: true,
           student: { connect: { id: created.id } },
         },
       });

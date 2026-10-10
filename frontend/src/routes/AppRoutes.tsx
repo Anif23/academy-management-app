@@ -1,7 +1,8 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from '../components/layout/AppLayout';
 import { ProtectedRoute } from './ProtectedRoute';
-import { RoleRoute } from './RoleRoute';
+import { PermissionRoute } from './PermissionRoute';
+import { GuestRoute } from './GuestRoute';
 import { useAuthStore } from '../store/authStore';
 import { homeRouteForRole } from '../utils/rolePermissions';
 import Login from '../pages/Login';
@@ -18,23 +19,35 @@ import Employees from '../pages/Employees';
 import Attendance from '../pages/Attendance';
 import ClassReports from '../pages/ClassReports';
 import Tasks from '../pages/Tasks';
+import TaskReview from '../pages/TaskReview';
+import RolesPermissions from '../pages/RolesPermissions';
+import MyTasks from '../pages/MyTasks';
+import TaskSubmit from '../pages/TaskSubmit';
 import Performance from '../pages/Performance';
 import Reports from '../pages/Reports';
 import Profile from '../pages/Profile';
+import ChangePassword from '../pages/ChangePassword';
 import Settings from '../pages/Settings';
 import AcademySettings from '../pages/AcademySettings';
 import Users from '../pages/Users';
 import NotFound from '../pages/NotFound';
 
 function HomeRedirect() {
-  const role = useAuthStore((s) => s.user?.role);
-  return <Navigate to={homeRouteForRole(role)} replace />;
+  const user = useAuthStore((s) => s.user);
+  return <Navigate to={homeRouteForRole(user?.role, user?.permissions)} replace />;
 }
 
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
+      <Route
+        path="/login"
+        element={
+          <GuestRoute>
+            <Login />
+          </GuestRoute>
+        }
+      />
 
       <Route
         element={
@@ -46,148 +59,181 @@ export function AppRoutes() {
         <Route
           path="/dashboard"
           element={
-            <RoleRoute allowedRoles={['ADMIN', 'STAFF']}>
+            <PermissionRoute anyOf={['dashboard:read']}>
               <Dashboard />
-            </RoleRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/my-profile"
           element={
-            <RoleRoute allowedRoles={['STUDENT']}>
+            <PermissionRoute anyOf={['profile:read-own']}>
               <MyProfile />
-            </RoleRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/walk-ins"
           element={
-            <RoleRoute allowedRoles={['ADMIN', 'STAFF']}>
+            <PermissionRoute anyOf={['walkins:read']}>
               <WalkIns />
-            </RoleRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/registration"
           element={
-            <RoleRoute allowedRoles={['ADMIN']}>
+            <PermissionRoute anyOf={['walkins:create', 'students:create']}>
               <Registration />
-            </RoleRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/students"
           element={
-            <RoleRoute allowedRoles={['ADMIN', 'STAFF']}>
+            <PermissionRoute anyOf={['students:read']}>
               <Students />
-            </RoleRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/students/:studentId"
           element={
-            <RoleRoute allowedRoles={['ADMIN', 'STAFF']}>
+            <PermissionRoute anyOf={['students:read']}>
               <StudentProfile />
-            </RoleRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/courses"
           element={
-            <RoleRoute allowedRoles={['ADMIN']}>
+            <PermissionRoute anyOf={['courses:read']}>
               <Courses />
-            </RoleRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/fees"
           element={
-            <RoleRoute allowedRoles={['ADMIN']}>
+            <PermissionRoute anyOf={['fees:read']}>
               <Fees />
-            </RoleRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/batches"
           element={
-            <RoleRoute allowedRoles={['ADMIN']}>
+            <PermissionRoute anyOf={['batches:read']}>
               <Batches />
-            </RoleRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/employees"
           element={
-            <RoleRoute allowedRoles={['ADMIN']}>
+            <PermissionRoute anyOf={['staff:read']}>
               <Employees />
-            </RoleRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/attendance"
           element={
-            <RoleRoute allowedRoles={['ADMIN', 'STAFF']}>
+            <PermissionRoute anyOf={['attendance:read']}>
               <Attendance />
-            </RoleRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/class-reports"
           element={
-            <RoleRoute allowedRoles={['ADMIN', 'STAFF']}>
+            <PermissionRoute anyOf={['classreports:read']}>
               <ClassReports />
-            </RoleRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/tasks"
           element={
-            <RoleRoute allowedRoles={['ADMIN', 'STAFF']}>
+            <PermissionRoute anyOf={['tasks:read']}>
               <Tasks />
-            </RoleRoute>
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/tasks/:id/review"
+          element={
+            <PermissionRoute anyOf={['tasks:read']}>
+              <TaskReview />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/my-tasks"
+          element={
+            <PermissionRoute anyOf={['tasks:read-own']}>
+              <MyTasks />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/my-tasks/:taskId"
+          element={
+            <PermissionRoute anyOf={['tasks:read-own']}>
+              <TaskSubmit />
+            </PermissionRoute>
           }
         />
         <Route
           path="/performance"
           element={
-            <RoleRoute allowedRoles={['ADMIN', 'STAFF']}>
+            <PermissionRoute anyOf={['performance:read']}>
               <Performance />
-            </RoleRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/reports"
           element={
-            <RoleRoute allowedRoles={['ADMIN']}>
+            <PermissionRoute anyOf={['reports:read']}>
               <Reports />
-            </RoleRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/users"
           element={
-            <RoleRoute allowedRoles={['ADMIN']}>
+            <PermissionRoute anyOf={['users:read']}>
               <Users />
-            </RoleRoute>
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/roles-permissions"
+          element={
+            <PermissionRoute anyOf={['permissions:manage']}>
+              <RolesPermissions />
+            </PermissionRoute>
           }
         />
         <Route
           path="/settings"
           element={
-            <RoleRoute allowedRoles={['ADMIN']}>
+            <PermissionRoute anyOf={['branding:manage', 'academy:manage']}>
               <Settings />
-            </RoleRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/academy-settings"
           element={
-            <RoleRoute allowedRoles={['ADMIN']}>
+            <PermissionRoute anyOf={['academy:manage', 'branding:manage', 'testimonials:manage', 'faqs:manage', 'announcements:manage']}>
               <AcademySettings />
-            </RoleRoute>
+            </PermissionRoute>
           }
         />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/change-password" element={<ChangePassword />} />
       </Route>
 
       <Route path="/" element={<HomeRedirect />} />

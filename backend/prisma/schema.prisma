@@ -17,6 +17,7 @@ datasource db {
 enum Role {
   ADMIN
   STAFF
+  COUNSELLOR
   STUDENT
 }
 
@@ -35,6 +36,9 @@ model User {
   phone        String?
   status       UserStatus @default(ACTIVE)
   avatar       String?
+  // True for auto-created Student/Staff accounts until they change their
+  // temporary (email-as-password) password for the first time.
+  mustChangePassword Boolean @default(false)
 
   // Optional links to a domain profile, depending on role.
   employee     Employee?
@@ -125,6 +129,8 @@ model Employee {
   counselledLeads  WalkIn[]     @relation("WalkInCounsellor")
   counselledStuds  Student[]    @relation("StudentCounsellor")
   classReports     ClassReport[]
+  createdTasks     Task[]           @relation("TaskCreator")
+  reviewedSubmissions TaskSubmission[] @relation("SubmissionReviewer")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -162,6 +168,8 @@ model Batch {
   attendance   Attendance[]
   classReports ClassReport[]
   tasks        Task[]
+  checkIns     DailyCheckIn[]
+  walkIns      WalkIn[] @relation("WalkInBatch")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -223,10 +231,11 @@ model Student {
   walkInId String? @unique
   walkIn   WalkIn? @relation(fields: [walkInId], references: [id], onDelete: SetNull)
 
-  fee          Fee?
-  attendance   Attendance[]
-  tasks        Task[]
-  performance  Performance[]
+  fee            Fee?
+  attendance     Attendance[]
+  taskSubmissions TaskSubmission[]
+  performance    Performance[]
+  checkIns       DailyCheckIn[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -270,6 +279,11 @@ model WalkIn {
 
   courseInterestedId String
   courseInterested   Course @relation(fields: [courseInterestedId], references: [id], onDelete: Restrict)
+
+  // The batch chosen during public registration (Register.tsx step 3), if
+  // any — carried through to admission so staff don't have to ask again.
+  batchId String?
+  batch   Batch?  @relation("WalkInBatch", fields: [batchId], references: [id], onDelete: SetNull)
 
   counsellorId String?
   counsellor   Employee? @relation("WalkInCounsellor", fields: [counsellorId], references: [id], onDelete: SetNull)
@@ -393,7 +407,9 @@ model ClassReport {
 }
 
 // --------------------------------------------------------------------------
-// Tasks
+// Tasks — one Task per assignment (individual OR batch), with an
+// independent TaskSubmission row per assigned student so progress is
+// tracked per-student without duplicating the task itself.
 // --------------------------------------------------------------------------
 
 enum TaskPriority {
@@ -402,35 +418,109 @@ enum TaskPriority {
   HIGH
 }
 
-enum TaskStatus {
+// Lifecycle: PENDING -> SUBMITTED -> REVIEWED
+//        or: SUBMITTED -> NEEDS_REVISION -> RESUBMITTED -> REVIEWED
+// OVERDUE is never stored — it's derived (PENDING/NEEDS_REVISION + dueDate
+// passed) at read time in taskService, since it depends on "now".
+enum SubmissionStatus {
   PENDING
-  IN_PROGRESS
-  COMPLETED
+  SUBMITTED
+  NEEDS_REVISION
+  RESUBMITTED
+  REVIEWED
 }
 
 model Task {
-  id                String       @id @default(cuid())
-  title             String
-  description       String
-  assignedDate      DateTime
-  dueDate           DateTime
-  priority          TaskPriority @default(MEDIUM)
-  status            TaskStatus   @default(PENDING)
-  trainerRemarks    String?
-  batchAssignmentId String?
+  id           String       @id @default(cuid())
+  title        String
+  description  String
+  assignedDate DateTime
+  dueDate      DateTime
+  priority     TaskPriority @default(MEDIUM)
 
-  studentId String
-  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
+  // Exactly one of these is set (enforced in taskService, not the DB):
+  // a batch task fans out to a TaskSubmission per active student in the
+  // batch; an individual task gets a single TaskSubmission.
   batchId String?
   batch   Batch?  @relation(fields: [batchId], references: [id], onDelete: SetNull)
+
+  createdById String?
+  createdBy   Employee? @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  attachments TaskAttachment[]
+  submissions TaskSubmission[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([studentId])
-  @@index([batchAssignmentId])
+  @@index([batchId])
+  @@index([createdById])
   @@map("tasks")
+}
+
+// Reference files the trainer attaches to the task itself (not a student
+// submission) — e.g. an assignment brief or starter files.
+model TaskAttachment {
+  id         String   @id @default(cuid())
+  taskId     String
+  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  url        String
+  fileName   String
+  fileType   String
+  fileSize   Int
+  uploadedAt DateTime @default(now())
+
+  @@index([taskId])
+  @@map("task_attachments")
+}
+
+// The actual unit of per-student progress. Created up front (status
+// PENDING) for every student a task is assigned to, so "who has NOT
+// submitted" is a plain query rather than an absence to infer.
+model TaskSubmission {
+  id     String @id @default(cuid())
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  status SubmissionStatus @default(PENDING)
+
+  // Rich-text (HTML from the editor) comment/answer the student submits.
+  content String?
+
+  submittedAt DateTime?
+
+  trainerFeedback String?
+  reviewedAt      DateTime?
+  reviewedById    String?
+  reviewedBy      Employee? @relation("SubmissionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  files SubmissionFile[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // A student has exactly one submission record per task.
+  @@unique([taskId, studentId])
+  @@index([studentId])
+  @@index([status])
+  @@map("task_submissions")
+}
+
+model SubmissionFile {
+  id           String         @id @default(cuid())
+  submissionId String
+  submission   TaskSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  url          String
+  fileName     String
+  fileType     String
+  fileSize     Int
+  uploadedAt   DateTime       @default(now())
+
+  @@index([submissionId])
+  @@map("submission_files")
 }
 
 // --------------------------------------------------------------------------
@@ -477,6 +567,21 @@ model AcademySettings {
   mission     String?
   vision      String?
   workingHours String?
+  // Optional — the admin's CRM-style page for managing these; a blank
+  // string means "not set" and the public site simply omits that icon.
+  facebookUrl  String?
+  instagramUrl String?
+  linkedinUrl  String?
+  youtubeUrl   String?
+  twitterUrl   String?
+  // Legal / compliance details shown in the footer and referenced by the
+  // Privacy Policy — required so the site names a real entity and a real
+  // contact for data-protection grievances (Indian DPDP Act, 2023).
+  legalName             String?
+  registrationNumber    String? // CIN / GST / other business registration number
+  grievanceOfficerName  String?
+  grievanceOfficerEmail String?
+  grievanceOfficerPhone String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -496,6 +601,24 @@ model Testimonial {
   @@map("testimonials")
 }
 
+model Announcement {
+  id        String   @id @default(cuid())
+  message   String
+  /// Optional link — e.g. to a course or the registration page. Opens in the same tab.
+  link      String?
+  /// Small label shown before the message, e.g. "New" or "Offer".
+  tag       String?
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+  /// Optional window. Null start/end means "always" (bounded only by isActive).
+  startsAt  DateTime?
+  endsAt    DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("announcements")
+}
+
 model FAQ {
   id        String   @id @default(cuid())
   question  String
@@ -508,3 +631,66 @@ model FAQ {
   @@map("faqs")
 }
 
+// --------------------------------------------------------------------------
+// Daily student check-in ("How was your day?") — optional, non-blocking.
+// --------------------------------------------------------------------------
+
+model DailyCheckIn {
+  id   String   @id @default(cuid())
+  // Always stored truncated to midnight (UTC) by the service layer so the
+  // unique constraint below actually enforces "one check-in per day".
+  date DateTime
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  batchId String?
+  batch   Batch?  @relation(fields: [batchId], references: [id], onDelete: SetNull)
+
+  mood            String? // free-form: "How was your day?"
+  classFeedback   String? // "How was today's class?"
+  understood      Boolean?
+  needsHelp       Boolean @default(false)
+  helpDescription String?
+
+  createdAt DateTime @default(now())
+
+  // At most one check-in per student per calendar day.
+  @@unique([studentId, date])
+  @@index([batchId])
+  @@map("daily_check_ins")
+}
+
+// --------------------------------------------------------------------------
+// Internal admin-app branding (sidebar/login logo, app name, tagline) —
+// stored server-side (not localStorage) so it's the same for every admin,
+// on every device/browser, not just whoever last changed it locally.
+// --------------------------------------------------------------------------
+
+model AppBranding {
+  id          String   @id @default("singleton")
+  appName     String   @default("Academy Management")
+  tagline     String   @default("For Managing Everything")
+  logoUrl     String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("app_branding")
+}
+
+// --------------------------------------------------------------------------
+// Dynamic role permissions — lets an admin toggle what each role can do
+// from a settings page instead of requiring a code change + redeploy.
+// Bootstrapped once from constants/roles.js's static PERMISSIONS map (see
+// permissionsService.js); that static file becomes the fallback/reference
+// list of every known permission key, not the live source of truth anymore.
+// --------------------------------------------------------------------------
+
+model RolePermission {
+  id         String @id @default(cuid())
+  role       Role
+  permission String
+
+  @@unique([role, permission])
+  @@index([role])
+  @@map("role_permissions")
+}

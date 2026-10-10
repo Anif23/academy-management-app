@@ -1,5 +1,7 @@
 const prisma = require('../config/prisma');
 const ApiError = require('../utils/ApiError');
+const { invalidate } = require('../utils/cache');
+const { CACHE_KEYS } = require('../constants/cacheKeys');
 
 async function getSettings() {
   const settings = await prisma.academySettings.findUnique({
@@ -18,6 +20,9 @@ async function updateSettings(data) {
       ...data,
     },
   });
+  // The public site would otherwise keep serving the old name/logo/legal
+  // details for up to the cache's TTL after a save.
+  await invalidate(CACHE_KEYS.academySettings);
   return settings;
 }
 

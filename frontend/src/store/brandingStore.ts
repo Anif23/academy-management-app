@@ -1,12 +1,12 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 
 interface BrandingState {
   appName: string;
   tagline: string;
   logoDataUrl: string;
+  hasLoaded: boolean;
   setBranding: (patch: Partial<Pick<BrandingState, 'appName' | 'tagline' | 'logoDataUrl'>>) => void;
-  resetBranding: () => void;
+  markLoaded: () => void;
 }
 
 const DEFAULTS = {
@@ -15,15 +15,14 @@ const DEFAULTS = {
   logoDataUrl: '',
 };
 
-export const useBrandingStore = create<BrandingState>()(
-  persist(
-    (set) => ({
-      ...DEFAULTS,
-      setBranding: (patch) => set((state) => ({ ...state, ...patch })),
-      resetBranding: () => set({ ...DEFAULTS }),
-    }),
-    {
-      name: 'academypro:branding',
-    },
-  ),
-);
+// Server-backed, not localStorage: branding is set by one admin and must
+// look the same for every admin on every device/browser, not just
+// whoever's browser last saved it. See services/brandingApi.ts for the
+// fetch that hydrates this on app load (works pre-login too, since the
+// login screen needs the logo/app name before anyone is authenticated).
+export const useBrandingStore = create<BrandingState>()((set) => ({
+  ...DEFAULTS,
+  hasLoaded: false,
+  setBranding: (patch) => set((state) => ({ ...state, ...patch })),
+  markLoaded: () => set({ hasLoaded: true }),
+}));

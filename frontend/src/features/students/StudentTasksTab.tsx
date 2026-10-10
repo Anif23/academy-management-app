@@ -1,10 +1,11 @@
 import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/common/States';
 import { StatusBadge } from '../../components/ui/Badge';
-import type { StudentTask } from '../../types';
+import type { MyTask } from '../../types';
 import { formatDate } from '../../utils/format';
 
-export function StudentTasksTab({ tasks }: { tasks: StudentTask[] }) {
+/** Read-only view of a student's tasks — used on admin/staff's Student Profile page. */
+export function StudentTasksTab({ tasks }: { tasks: MyTask[] }) {
   if (tasks.length === 0) {
     return (
       <Card>
@@ -15,25 +16,30 @@ export function StudentTasksTab({ tasks }: { tasks: StudentTask[] }) {
 
   return (
     <div className="space-y-3">
-      {tasks.map((task) => (
-        <Card key={task.id}>
+      {tasks.map((submission) => (
+        <Card key={submission.id}>
           <div className="p-4">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
-                <p className="text-sm font-semibold text-text-primary">{task.title}</p>
-                <p className="mt-1 text-sm text-text-muted">{task.description}</p>
+                <p className="text-sm font-semibold text-text-primary">{submission.task.title}</p>
+                <p className="mt-1 text-sm text-text-muted">{submission.task.description}</p>
               </div>
               <div className="flex items-center gap-1.5">
-                <StatusBadge status={task.priority} />
-                <StatusBadge status={task.status} />
+                <StatusBadge status={submission.task.priority} />
+                <StatusBadge status={submission.status} />
               </div>
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-text-muted">
-              <span>Assigned: {formatDate(task.assignedDate)}</span>
-              <span>Due: {formatDate(task.dueDate)}</span>
+              <span>Assigned: {formatDate(submission.task.assignedDate)}</span>
+              <span>Due: {formatDate(submission.task.dueDate)}</span>
+              {submission.submittedAt && <span>Submitted: {formatDate(submission.submittedAt)}</span>}
+              {submission.task.batch && <span>Batch: {submission.task.batch.name}</span>}
             </div>
-            {task.trainerRemarks && (
-              <p className="mt-2 rounded-lg bg-surface-muted px-3 py-2 text-xs text-text-secondary">{task.trainerRemarks}</p>
+            {submission.trainerFeedback && (
+              <p className="mt-2 rounded-lg bg-surface-muted px-3 py-2 text-xs text-text-secondary">
+                <span className="font-medium text-text-primary">Trainer feedback: </span>
+                <span className="rich-content inline" dangerouslySetInnerHTML={{ __html: submission.trainerFeedback }} />
+              </p>
             )}
           </div>
         </Card>

@@ -14,7 +14,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { CalendarCheck, CalendarClock, CheckCircle2, ClipboardList, GraduationCap, IndianRupee, TrendingUp, UsersRound } from 'lucide-react';
+import { AlertCircle, CalendarCheck, CalendarClock, CheckCircle2, ClipboardList, GraduationCap, IndianRupee, Sparkles, TrendingUp, UsersRound } from 'lucide-react';
 import { PageHeader } from '../components/common/PageHeader';
 import { StatCard } from '../components/common/StatCard';
 import { Card, CardBody, CardHeader } from '../components/ui/Card';
@@ -29,15 +29,289 @@ import { useAllTasks } from '../hooks/useTasks';
 import { useAllPerformance } from '../hooks/usePerformance';
 import { computeOverallPerformance } from '../services/api';
 import { formatCurrency, formatDate, initials, todayIso } from '../utils/format';
+import { useAuthStore } from '../store/authStore';
+import { cn } from '../utils/cn';
+
+interface TrainerDashboardStats {
+  dashboardType: 'trainer';
+  myBatches: number;
+  ongoingBatches: number;
+  myStudents: number;
+  activeStudents: number;
+  avgAttendance: number;
+  pendingSubmissions: number;
+  batchesAttendancePending: number;
+  classReportsFiledToday: number;
+}
+
+interface FollowUpLead {
+  id: string;
+  name: string;
+  mobile: string;
+  course: string;
+  followUpDate: string;
+  status: string;
+}
+
+interface CounsellorDashboardStats {
+  dashboardType: 'counsellor';
+  totalLeads: number;
+  newThisWeek: number;
+  admissionsThisMonth: number;
+  followUpsDueToday: number;
+  followUpsOverdue: number;
+  todaysFollowUps: FollowUpLead[];
+  overdueList: FollowUpLead[];
+}
 
 const PIE_COLORS = ['#4f46e5', '#818cf8', '#a5b4fc', '#f59e0b', '#10b981', '#ef4444'];
 const TASK_STATUS_COLORS: Record<string, string> = {
   Pending: '#f59e0b',
-  'In Progress': '#4f46e5',
-  Completed: '#10b981',
+  Submitted: '#4f46e5',
+  'Needs Revision': '#ef4444',
+  Resubmitted: '#a855f7',
+  Reviewed: '#10b981',
+  Overdue: '#dc2626',
 };
 
 export default function Dashboard() {
+  const role = useAuthStore((s) => s.user?.role);
+  if (role === 'STAFF' || role === 'COUNSELLOR') return <StaffDashboard />;
+  return <AdminDashboard />;
+}
+
+function StaffDashboard() {
+  const { data: stats, isLoading, isError, refetch } = useDashboardStats() as unknown as {
+    data?: TrainerDashboardStats | CounsellorDashboardStats;
+    isLoading: boolean;
+    isError: boolean;
+    refetch: () => void;
+  };
+
+  if (isLoading) {
+    return (
+      <div>
+        <PageHeader title="My Dashboard" description="What needs your attention today." />
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <CardSkeleton key={i} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (isError || !stats) {
+    return (
+      <div>
+        <PageHeader title="My Dashboard" description="" />
+        <Card>
+          <ErrorState onRetry={refetch} />
+        </Card>
+      </div>
+    );
+  }
+
+  if (stats.dashboardType === 'counsellor') {
+    return <CounsellorDashboard stats={stats} />;
+  }
+  return <TrainerDashboard stats={stats} />;
+}
+
+function TrainerDashboard({ stats }: { stats: TrainerDashboardStats }) {
+  const navigate = useNavigate();
+  const hasPendingAttendance = stats.batchesAttendancePending > 0;
+
+  return (
+    <div>
+      <PageHeader title="My Dashboard" description="Your assigned batches and students — not the full academy." />
+
+      {/* "Today" — the one thing this dashboard exists to answer: what
+          actually needs doing right now, not just static totals. */}
+      <Card className="mb-6 border-brand-200 bg-brand-50/40 dark:border-brand-500/20 dark:bg-brand-500/5">
+        <CardBody>
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-brand-600" />
+            <h3 className="text-sm font-semibold text-text-primary">Today</h3>
+          </div>
+          <div className="mt-3 space-y-2">
+            <TodayRow
+              done={!hasPendingAttendance}
+              label={
+                hasPendingAttendance
+                  ? `Attendance not yet marked for ${stats.batchesAttendancePending} of your ongoing batch(es)`
+                  : "Attendance is up to date for all your ongoing batches"
+              }
+              actionLabel={hasPendingAttendance ? 'Mark now' : undefined}
+              onAction={() => navigate('/attendance')}
+            />
+            <TodayRow
+              done={stats.pendingSubmissions === 0}
+              label={
+                stats.pendingSubmissions > 0
+                  ? `${stats.pendingSubmissions} task submission(s) waiting on your review`
+                  : 'No submissions waiting on review'
+              }
+              actionLabel={stats.pendingSubmissions > 0 ? 'Review' : undefined}
+              onAction={() => navigate('/tasks')}
+            />
+            <TodayRow
+              done={stats.classReportsFiledToday > 0}
+              label={
+                stats.classReportsFiledToday > 0
+                  ? `${stats.classReportsFiledToday} class report(s) filed today`
+                  : "No class report filed yet today"
+              }
+              actionLabel={stats.classReportsFiledToday === 0 ? 'Add report' : undefined}
+              onAction={() => navigate('/class-reports')}
+            />
+          </div>
+        </CardBody>
+      </Card>
+
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard label="My Batches" value={stats.myBatches.toString()} icon={GraduationCap} tone="brand" onClick={() => navigate('/batches')} />
+        <StatCard label="Ongoing Batches" value={stats.ongoingBatches.toString()} icon={CalendarClock} tone="green" />
+        <StatCard label="My Students" value={stats.myStudents.toString()} icon={UsersRound} tone="purple" onClick={() => navigate('/students')} />
+        <StatCard label="Active Students" value={stats.activeStudents.toString()} icon={CheckCircle2} tone="green" />
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <StatCard
+          label="Average Attendance"
+          value={`${stats.avgAttendance}%`}
+          icon={CalendarCheck}
+          tone="amber"
+          onClick={() => navigate('/attendance')}
+        />
+        <StatCard
+          label="Submissions to Review"
+          value={stats.pendingSubmissions.toString()}
+          icon={ClipboardList}
+          tone="red"
+          onClick={() => navigate('/tasks')}
+        />
+      </div>
+
+      <p className="mt-6 text-xs text-text-muted">
+        Revenue, fees, and academy-wide reports are only visible to admin accounts.
+      </p>
+    </div>
+  );
+}
+
+function CounsellorDashboard({ stats }: { stats: CounsellorDashboardStats }) {
+  const navigate = useNavigate();
+  const hasFollowUpsToday = stats.todaysFollowUps.length > 0;
+  const hasOverdue = stats.overdueList.length > 0;
+
+  return (
+    <div>
+      <PageHeader title="My Dashboard" description="Your leads and follow-ups — not the full academy." />
+
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard label="My Total Leads" value={stats.totalLeads.toString()} icon={UsersRound} tone="brand" onClick={() => navigate('/walk-ins')} />
+        <StatCard label="New This Week" value={stats.newThisWeek.toString()} icon={ClipboardList} tone="purple" />
+        <StatCard label="Due Today" value={stats.followUpsDueToday.toString()} icon={CalendarCheck} tone={hasFollowUpsToday ? 'amber' : 'green'} />
+        <StatCard label="Overdue" value={stats.followUpsOverdue.toString()} icon={CalendarClock} tone={hasOverdue ? 'red' : 'green'} />
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader title="Follow Up With Today" description={hasFollowUpsToday ? undefined : 'Nothing scheduled for today — nice and clear.'} />
+          <CardBody>
+            {hasFollowUpsToday ? (
+              <ul className="space-y-2">
+                {stats.todaysFollowUps.map((lead) => (
+                  <FollowUpRow key={lead.id} lead={lead} onClick={() => navigate('/walk-ins')} />
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-text-muted">You're all caught up for today.</p>
+            )}
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader title="Overdue Follow-ups" description={hasOverdue ? 'These passed their follow-up date without an update.' : undefined} />
+          <CardBody>
+            {hasOverdue ? (
+              <ul className="space-y-2">
+                {stats.overdueList.map((lead) => (
+                  <FollowUpRow key={lead.id} lead={lead} overdue onClick={() => navigate('/walk-ins')} />
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-text-muted">Nothing overdue. Great work staying on top of it.</p>
+            )}
+          </CardBody>
+        </Card>
+      </div>
+
+      <p className="mt-6 text-xs text-text-muted">
+        Revenue, fees, and academy-wide reports are only visible to admin accounts.
+      </p>
+    </div>
+  );
+}
+
+function TodayRow({
+  done,
+  label,
+  actionLabel,
+  onAction,
+}: {
+  done: boolean;
+  label: string;
+  actionLabel?: string;
+  onAction: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg bg-surface px-3 py-2">
+      <div className="flex items-center gap-2 text-sm">
+        {done ? (
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+        ) : (
+          <AlertCircle className="h-4 w-4 shrink-0 text-amber-500" />
+        )}
+        <span className={done ? 'text-text-secondary' : 'text-text-primary font-medium'}>{label}</span>
+      </div>
+      {actionLabel && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="shrink-0 text-xs font-semibold text-brand-600 hover:underline dark:text-brand-400"
+        >
+          {actionLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function FollowUpRow({ lead, overdue, onClick }: { lead: FollowUpLead; overdue?: boolean; onClick: () => void }) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex w-full items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5 text-left transition-colors hover:bg-surface-hover"
+      >
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium text-text-primary">{lead.name}</p>
+          <p className="truncate text-xs text-text-muted">
+            {lead.course} · {lead.mobile}
+          </p>
+        </div>
+        <span className={cn('shrink-0 text-xs font-semibold', overdue ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400')}>
+          {formatDate(lead.followUpDate)}
+        </span>
+      </button>
+    </li>
+  );
+}
+
+function AdminDashboard() {
   const navigate = useNavigate();
   const { data: stats, isLoading: statsLoading, isError: statsError, refetch: refetchStats } = useDashboardStats();
   const { data: revenue, isLoading: revenueLoading } = useRevenueSeries();
@@ -79,11 +353,18 @@ export default function Dashboard() {
 
   const taskBreakdown = useMemo(() => {
     if (!tasks) return [];
-    const counts: Record<string, number> = { Pending: 0, 'In Progress': 0, Completed: 0 };
+    const counts: Record<string, number> = {
+      Pending: 0,
+      Submitted: 0,
+      'Needs Revision': 0,
+      Resubmitted: 0,
+      Reviewed: 0,
+      Overdue: 0,
+    };
     tasks.forEach((t) => {
       counts[t.status] = (counts[t.status] ?? 0) + 1;
     });
-    return Object.entries(counts).map(([status, count]) => ({ status, count }));
+    return Object.entries(counts).filter(([, count]) => count > 0).map(([status, count]) => ({ status, count }));
   }, [tasks]);
 
   const upcomingBatches = useMemo(() => {

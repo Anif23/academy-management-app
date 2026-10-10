@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 interface ModalProps {
   open: boolean;
@@ -21,6 +22,9 @@ const sizeClasses = {
 };
 
 export function Modal({ open, onClose, title, description, children, footer, size = 'md' }: ModalProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef, open);
+
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -40,8 +44,10 @@ export function Modal({ open, onClose, title, description, children, footer, siz
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
       <div
+        ref={panelRef}
+        tabIndex={-1}
         className={cn(
-          'relative flex max-h-[calc(100vh-2rem)] w-full flex-col rounded-2xl border border-border bg-surface shadow-popover animate-slide-up',
+          'relative flex max-h-[calc(100vh-2rem)] w-full flex-col rounded-2xl border border-border bg-surface shadow-popover animate-slide-up focus:outline-none',
           sizeClasses[size],
         )}
       >

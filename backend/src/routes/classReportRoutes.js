@@ -9,13 +9,12 @@ const { createClassReportSchema, updateClassReportSchema } = require('../validat
 const router = express.Router();
 
 router.use(requireAuth);
-router.use(requirePermission('classreports:manage'));
 
-router.get('/', validate({ query: paginationQuerySchema }), classReportController.getAll);
-router.get('/all', classReportController.getAllRaw);
-router.get('/:id', validate({ params: idParamSchema }), classReportController.getById);
-router.post('/', validate({ body: createClassReportSchema }), classReportController.create);
-router.patch('/:id', validate({ params: idParamSchema, body: updateClassReportSchema }), classReportController.update);
-router.delete('/:id', validate({ params: idParamSchema }), classReportController.remove);
+router.get('/', requirePermission('classreports:read'), validate({ query: paginationQuerySchema }), classReportController.getAll);
+router.get('/all', requirePermission('classreports:read'), classReportController.getAllRaw);
+router.get('/:id', requirePermission('classreports:read'), validate({ params: idParamSchema }), classReportController.getById);
+router.post('/', requirePermission('classreports:create'), validate({ body: createClassReportSchema }), classReportController.create);
+router.patch('/:id', requirePermission('classreports:update'), validate({ params: idParamSchema, body: updateClassReportSchema }), classReportController.update);
+router.delete('/:id', requirePermission('classreports:delete'), validate({ params: idParamSchema }), classReportController.remove);
 
 module.exports = router;

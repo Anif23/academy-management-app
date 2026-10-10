@@ -2,13 +2,21 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Upload } from 'lucide-react';
+import { Upload, Facebook, Instagram, Linkedin, Youtube, Twitter } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Field } from '../../components/ui/Field';
 import { Card } from '../../components/ui/Card';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { httpClient, API_BASE_URL } from '../../services/httpClient';
+import { httpClient } from '../../services/httpClient';
+import { uploadFile } from '../../services/uploadApi';
 import { toastSuccess, toastError } from '../../store/toastStore';
+
+const optionalUrl = z
+  .string()
+  .trim()
+  .optional()
+  .refine((v) => !v || /^https?:\/\/.+/.test(v), { message: 'Must start with http:// or https://' })
+  .or(z.literal(''));
 
 const settingsSchema = z.object({
   name: z.string().min(1, 'Academy name is required'),
@@ -24,6 +32,16 @@ const settingsSchema = z.object({
   vision: z.string().optional(),
   workingHours: z.string().optional(),
   logoUrl: z.string().optional().or(z.literal('')),
+  facebookUrl: optionalUrl,
+  instagramUrl: optionalUrl,
+  linkedinUrl: optionalUrl,
+  youtubeUrl: optionalUrl,
+  twitterUrl: optionalUrl,
+  legalName: z.string().optional().or(z.literal('')),
+  registrationNumber: z.string().optional().or(z.literal('')),
+  grievanceOfficerName: z.string().optional().or(z.literal('')),
+  grievanceOfficerEmail: z.string().email('Valid email required').optional().or(z.literal('')),
+  grievanceOfficerPhone: z.string().optional().or(z.literal('')),
 });
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
@@ -32,8 +50,13 @@ export const AcademySettingsForm = () => {
   const queryClient = useQueryClient();
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
-  const serverBaseUrl = API_BASE_URL.replace('/api', '');
+  const resolveLogoUrl = (url?: string | null) => {
+    if (!url) return null;
+    if (/^https?:\/\//.test(url)) return url;
+    return `${httpClient.defaults.baseURL?.replace(/\/api\/?$/, '')}${url}`;
+  };
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ['academySettings'],
@@ -50,22 +73,10 @@ export const AcademySettingsForm = () => {
   useEffect(() => {
     if (settings) {
       form.reset(settings);
-      if (settings.logoUrl) {
-        setLogoPreview(`${serverBaseUrl}${settings.logoUrl}`);
-      }
+      setLogoPreview(resolveLogoUrl(settings.logoUrl));
     }
-  }, [settings, form, serverBaseUrl]);
-
-  const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append('file', file);
-      const { data } = await httpClient.post('/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      return data.data.url;
-    },
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings, form]);
 
   const mutation = useMutation({
     mutationFn: async (data: SettingsFormData) => {
@@ -76,9 +87,7 @@ export const AcademySettingsForm = () => {
       queryClient.invalidateQueries({ queryKey: ['academySettings'] });
       toastSuccess('Academy settings updated successfully!');
       form.reset(response.data);
-      if (response.data.logoUrl) {
-        setLogoPreview(`${serverBaseUrl}${response.data.logoUrl}`);
-      }
+      setLogoPreview(resolveLogoUrl(response.data.logoUrl));
     },
     onError: () => {
       toastError('Failed to update academy settings.');
@@ -91,21 +100,24 @@ export const AcademySettingsForm = () => {
     if (file) {
       setLogoPreview(URL.createObjectURL(file));
     } else {
-      setLogoPreview(settings?.logoUrl ? `${serverBaseUrl}${settings.logoUrl}` : null);
+      setLogoPreview(resolveLogoUrl(settings?.logoUrl));
     }
   };
 
   const onSubmit = async (data: SettingsFormData) => {
-    let finalData = { ...data };
+    const finalData = { ...data };
 
     if (logoFile) {
+      setUploadingLogo(true);
       try {
-        const url = await uploadMutation.mutateAsync(logoFile);
-        finalData.logoUrl = url;
+        const uploaded = await uploadFile(logoFile, 'misc');
+        finalData.logoUrl = uploaded.url;
       } catch (error) {
-        toastError('Logo upload failed. Please try again.');
+        toastError('Logo upload failed. Please try again.', error instanceof Error ? error.message : undefined);
+        setUploadingLogo(false);
         return;
       }
+      setUploadingLogo(false);
     }
 
     mutation.mutate(finalData);
@@ -174,9 +186,74 @@ export const AcademySettingsForm = () => {
         </div>
       </Card>
 
+      <Card className="p-8">
+        <h3 className="text-xl font-bold mb-6">Social Links</h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 -mt-4">
+          Shown as icons in the public website's footer. Leave blank to hide an icon.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="flex items-center gap-2">
+            <Facebook className="h-4 w-4 shrink-0 text-gray-400" />
+            <Field label="Facebook" {...form.register('facebookUrl')} error={form.formState.errors.facebookUrl?.message} placeholder="https://facebook.com/youracademy" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Instagram className="h-4 w-4 shrink-0 text-gray-400" />
+            <Field label="Instagram" {...form.register('instagramUrl')} error={form.formState.errors.instagramUrl?.message} placeholder="https://instagram.com/youracademy" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Linkedin className="h-4 w-4 shrink-0 text-gray-400" />
+            <Field label="LinkedIn" {...form.register('linkedinUrl')} error={form.formState.errors.linkedinUrl?.message} placeholder="https://linkedin.com/company/youracademy" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Youtube className="h-4 w-4 shrink-0 text-gray-400" />
+            <Field label="YouTube" {...form.register('youtubeUrl')} error={form.formState.errors.youtubeUrl?.message} placeholder="https://youtube.com/@youracademy" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Twitter className="h-4 w-4 shrink-0 text-gray-400" />
+            <Field label="Twitter / X" {...form.register('twitterUrl')} error={form.formState.errors.twitterUrl?.message} placeholder="https://x.com/youracademy" />
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-8">
+        <h3 className="text-xl font-bold mb-2">Legal & Compliance</h3>
+        <p className="mb-6 text-sm text-secondary">
+          Shown in the site footer and referenced by the Privacy Policy. A real grievance contact is required
+          under India's Digital Personal Data Protection Act, 2023.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Field
+            label="Registered Legal Name"
+            {...form.register('legalName')}
+            error={form.formState.errors.legalName?.message}
+            placeholder="e.g. Academy Pro Education Pvt. Ltd."
+          />
+          <Field
+            label="Business Registration No. (CIN/GST/etc.)"
+            {...form.register('registrationNumber')}
+            error={form.formState.errors.registrationNumber?.message}
+          />
+          <Field
+            label="Grievance Officer Name"
+            {...form.register('grievanceOfficerName')}
+            error={form.formState.errors.grievanceOfficerName?.message}
+          />
+          <Field
+            label="Grievance Officer Email"
+            {...form.register('grievanceOfficerEmail')}
+            error={form.formState.errors.grievanceOfficerEmail?.message}
+          />
+          <Field
+            label="Grievance Officer Phone"
+            {...form.register('grievanceOfficerPhone')}
+            error={form.formState.errors.grievanceOfficerPhone?.message}
+          />
+        </div>
+      </Card>
+
       <div className="flex justify-end">
-        <Button type="submit" disabled={mutation.isPending || uploadMutation.isPending}>
-          {(mutation.isPending || uploadMutation.isPending) ? 'Saving...' : 'Save Academy Settings'}
+        <Button type="submit" disabled={mutation.isPending || uploadingLogo}>
+          {(mutation.isPending || uploadingLogo) ? 'Saving...' : 'Save Academy Settings'}
         </Button>
       </div>
     </form>

@@ -102,7 +102,7 @@ const CourseDetails = () => {
                         </span>
                         <span className="text-xs bg-accent text-white px-2 py-1 rounded">Available</span>
                       </div>
-                      <div className="text-xs text-slate-400 flex justify-between">
+                      <div className="text-xs text-slate-500 flex justify-between">
                         <span>Starts: {new Date(batch.startDate).toLocaleDateString()}</span>
                         <span>{batch.classTiming}</span>
                       </div>
@@ -110,7 +110,7 @@ const CourseDetails = () => {
                   ))}
                 </div>
               ) : (
-                <p className="text-slate-400 mb-8">No active batches available at the moment.</p>
+                <p className="text-slate-500 mb-8">No active batches available at the moment.</p>
               )}
 
               <div className="space-y-4">

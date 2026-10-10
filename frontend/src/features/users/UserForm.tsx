@@ -9,15 +9,13 @@ const createSchema = z.object({
   name: z.string().trim().min(2, 'Name is required.'),
   email: z.string().trim().toLowerCase().email('Enter a valid email address.'),
   password: z.string().min(8, 'Password must be at least 8 characters.'),
-  role: z.enum(['ADMIN', 'STAFF', 'STUDENT']),
-  department: z.string().trim().optional().default(''),
+  role: z.enum(['ADMIN', 'STAFF', 'COUNSELLOR', 'STUDENT']),
   phone: z.string().trim().optional().default(''),
 });
 
 const editSchema = z.object({
   name: z.string().trim().min(2, 'Name is required.'),
-  role: z.enum(['ADMIN', 'STAFF', 'STUDENT']),
-  department: z.string().trim().optional().default(''),
+  role: z.enum(['ADMIN', 'STAFF', 'COUNSELLOR', 'STUDENT']),
   phone: z.string().trim().optional().default(''),
   status: z.enum(['Active', 'Inactive']),
 });
@@ -38,7 +36,7 @@ export function UserForm({ defaultValues, onSubmitCreate, onSubmitEdit, onCancel
 
   const createForm = useForm<CreateValues>({
     resolver: zodResolver(createSchema),
-    defaultValues: { name: '', email: '', password: '', role: 'STAFF', department: '', phone: '' },
+    defaultValues: { name: '', email: '', password: '', role: 'STAFF', phone: '' },
   });
 
   const editForm = useForm<EditValues>({
@@ -46,7 +44,6 @@ export function UserForm({ defaultValues, onSubmitCreate, onSubmitEdit, onCancel
     defaultValues: {
       name: defaultValues?.name ?? '',
       role: defaultValues?.role ?? 'STAFF',
-      department: defaultValues?.department ?? '',
       phone: defaultValues?.phone ?? '',
       status: defaultValues?.status ?? 'Active',
     },
@@ -70,7 +67,8 @@ export function UserForm({ defaultValues, onSubmitCreate, onSubmitEdit, onCancel
             </Label>
             <Select id="user-role" {...editForm.register('role')}>
               <option value="ADMIN">Admin</option>
-              <option value="STAFF">Staff</option>
+              <option value="STAFF">Trainer (Staff)</option>
+              <option value="COUNSELLOR">Counsellor</option>
               <option value="STUDENT">Student</option>
             </Select>
           </div>
@@ -85,10 +83,6 @@ export function UserForm({ defaultValues, onSubmitCreate, onSubmitEdit, onCancel
           </div>
         </FormRow>
         <FormRow>
-          <div>
-            <Label htmlFor="user-department">Department</Label>
-            <Input id="user-department" {...editForm.register('department')} />
-          </div>
           <div>
             <Label htmlFor="user-phone">Phone</Label>
             <Input id="user-phone" {...editForm.register('phone')} />
@@ -135,23 +129,18 @@ export function UserForm({ defaultValues, onSubmitCreate, onSubmitEdit, onCancel
         </Label>
         <Select id="new-user-role" {...createForm.register('role')}>
           <option value="ADMIN">Admin</option>
-          <option value="STAFF">Staff</option>
+          <option value="STAFF">Trainer (Staff)</option>
+              <option value="COUNSELLOR">Counsellor</option>
           <option value="STUDENT">Student</option>
         </Select>
         <p className="mt-1.5 text-xs text-text-muted">
-          Staff and Student accounts control what this login can see and do — enforced by the backend regardless of the frontend.
+          Trainer, Counsellor and Student accounts control what this login can see and do — enforced by the backend regardless of the frontend.
         </p>
       </div>
-      <FormRow>
-        <div>
-          <Label htmlFor="new-user-department">Department</Label>
-          <Input id="new-user-department" {...createForm.register('department')} />
-        </div>
-        <div>
-          <Label htmlFor="new-user-phone">Phone</Label>
-          <Input id="new-user-phone" {...createForm.register('phone')} />
-        </div>
-      </FormRow>
+      <div>
+        <Label htmlFor="new-user-phone">Phone</Label>
+        <Input id="new-user-phone" {...createForm.register('phone')} />
+      </div>
       <div className="flex items-center justify-end gap-2 pt-2">
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel

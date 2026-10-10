@@ -1,10 +1,15 @@
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 const attendanceService = require('../services/attendanceService');
+const { staffOwnsStudent, staffOwnsBatch } = require('../utils/staffScope');
+const { isScopedRole } = require('../constants/roles');
 
 const getByStudent = asyncHandler(async (req, res) => {
   if (req.user.role === 'STUDENT' && req.user.studentId !== req.params.studentId) {
     throw ApiError.forbidden("You can't access another student's attendance.", 'IDOR_BLOCKED');
+  }
+  if (isScopedRole(req.user.role) && !(await staffOwnsStudent(req.user.employeeId, req.params.studentId))) {
+    throw ApiError.forbidden('This student is not in one of your assigned batches.', 'NOT_YOUR_STUDENT');
   }
   const data = await attendanceService.getByStudent(req.params.studentId);
   res.json({ success: true, data });
@@ -19,6 +24,9 @@ const getMine = asyncHandler(async (req, res) => {
 const getByBatchAndDate = asyncHandler(async (req, res) => {
   const { batchId, date } = req.query;
   if (!batchId || !date) throw ApiError.badRequest('batchId and date query params are required.');
+  if (isScopedRole(req.user.role) && !(await staffOwnsBatch(req.user.employeeId, batchId))) {
+    throw ApiError.forbidden("You're not assigned to this batch.", 'NOT_YOUR_BATCH');
+  }
   const data = await attendanceService.getByBatchAndDate(batchId, new Date(date));
   res.json({ success: true, data });
 });
@@ -30,6 +38,9 @@ const getAllRaw = asyncHandler(async (req, res) => {
 
 const markBulk = asyncHandler(async (req, res) => {
   const { batchId, date, marks } = req.body;
+  if (isScopedRole(req.user.role) && !(await staffOwnsBatch(req.user.employeeId, batchId))) {
+    throw ApiError.forbidden("You're not assigned to this batch.", 'NOT_YOUR_BATCH');
+  }
   const data = await attendanceService.markBulk(batchId, date, marks);
   res.json({ success: true, data, message: 'Attendance saved successfully.' });
 });
@@ -37,6 +48,9 @@ const markBulk = asyncHandler(async (req, res) => {
 const getClassSummary = asyncHandler(async (req, res) => {
   const { batchId, date } = req.query;
   if (!batchId || !date) throw ApiError.badRequest('batchId and date query params are required.');
+  if (isScopedRole(req.user.role) && !(await staffOwnsBatch(req.user.employeeId, batchId))) {
+    throw ApiError.forbidden("You're not assigned to this batch.", 'NOT_YOUR_BATCH');
+  }
   const data = await attendanceService.computeClassAttendance(batchId, new Date(date));
   res.json({ success: true, data });
 });

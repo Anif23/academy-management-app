@@ -1,5 +1,7 @@
 const prisma = require('../config/prisma');
 const ApiError = require('../utils/ApiError');
+const { invalidate } = require('../utils/cache');
+const { CACHE_KEYS } = require('../constants/cacheKeys');
 const { BatchStatusMap } = require('../utils/enumMaps');
 const { parsePagination, buildPaginatedResult } = require('../utils/pagination');
 
@@ -24,7 +26,7 @@ function toPublic(batch) {
 
 const includeRelations = { course: true, students: { select: { id: true } } };
 
-async function getAll(query) {
+async function getAll(query, actor) {
   const { page, pageSize, skip, take } = parsePagination(query);
   const where = {
     ...(query.search
@@ -34,6 +36,11 @@ async function getAll(query) {
     ...(query.course ? { course: { name: query.course } } : {}),
   };
 
+  // A trainer only ever sees the batches they've been assigned to.
+  if (actor?.role === 'STAFF') {
+    where.trainerId = actor.employeeId;
+  }
+
   const [rows, total] = await Promise.all([
     prisma.batch.findMany({ where, skip, take, include: includeRelations, orderBy: { createdAt: 'desc' } }),
     prisma.batch.count({ where }),
@@ -42,8 +49,9 @@ async function getAll(query) {
   return buildPaginatedResult(rows.map(toPublic), total, page, pageSize);
 }
 
-async function getAllRaw() {
-  const rows = await prisma.batch.findMany({ include: includeRelations, orderBy: { createdAt: 'desc' } });
+async function getAllRaw(actor) {
+  const where = actor?.role === 'STAFF' ? { trainerId: actor.employeeId } : {};
+  const rows = await prisma.batch.findMany({ where, include: includeRelations, orderBy: { createdAt: 'desc' } });
   return rows.map(toPublic);
 }
 
@@ -68,6 +76,7 @@ async function create(input) {
     },
     include: includeRelations,
   });
+  await invalidate(CACHE_KEYS.academyStats);
   return toPublic(batch);
 }
 
@@ -84,6 +93,7 @@ async function update(id, patch) {
   if (patch.status !== undefined) data.status = BatchStatusMap.toDb(patch.status);
 
   const batch = await prisma.batch.update({ where: { id }, data, include: includeRelations });
+  if (patch.status !== undefined) await invalidate(CACHE_KEYS.academyStats);
   return toPublic(batch);
 }
 

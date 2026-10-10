@@ -1,8 +1,34 @@
+import { useRef } from 'react';
 import { Star, Quote } from 'lucide-react';
+import { useGSAP } from '@gsap/react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useTestimonials } from '../../hooks/useTestimonials';
+
+gsap.registerPlugin(ScrollTrigger);
 
 const Testimonials = () => {
   const { data: testimonials, isLoading, error } = useTestimonials();
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  useGSAP(
+    () => {
+      const mql = window.matchMedia('(prefers-reduced-motion: reduce)');
+      if (mql.matches || !testimonials?.length || !gridRef.current?.querySelector('.testimonial-card')) return;
+
+      ScrollTrigger.batch('.testimonial-card', {
+        start: 'top 88%',
+        onEnter: (batch) =>
+          gsap.fromTo(
+            batch,
+            { opacity: 0, y: 32 },
+            { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out', stagger: 0.08 },
+          ),
+        once: true,
+      });
+    },
+    { scope: gridRef, dependencies: [testimonials] },
+  );
 
   if (isLoading) {
     return (
@@ -25,18 +51,18 @@ const Testimonials = () => {
     <section id="testimonials" className="py-24 bg-slate-50 overflow-hidden">
         <div className="text-center mb-16 space-y-4">
           <h2 className="text-4xl lg:text-5xl font-bold text-primary tracking-tight">
-            Student <span className="text-accent">Success Stories</span>
+            Student <span className="text-gradient">Success Stories</span>
           </h2>
           <p className="text-lg text-secondary leading-relaxed">
             Hear from our graduates who have transformed their careers through our specialized programs.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" ref={gridRef}>
           {testimonials.map((testimonial: any) => (
             <div
               key={testimonial.id}
-              className="p-8 rounded-3xl bg-white border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 group relative"
+              className="testimonial-card p-8 rounded-3xl bg-white border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 group relative"
             >
               <div className="absolute -top-4 -right-4 w-12 h-12 bg-accent/10 text-accent rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                 <Quote size={20} />

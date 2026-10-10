@@ -12,17 +12,17 @@ const router = express.Router();
 router.use(requireAuth);
 
 router.get('/me', requirePermission('fees:read-own'), feeController.getMine);
-router.get('/all', requirePermission('fees:manage'), feeController.getAllRaw);
+router.get('/all', requirePermission('fees:read'), feeController.getAllRaw);
 router.get(
   '/student/:studentId',
-  requirePermission('fees:manage', 'fees:read-own'),
+  requirePermission('fees:read', 'fees:read-own'),
   validate({ params: z.object({ studentId: z.string().min(1) }) }),
   feeController.getByStudent,
 );
-router.patch('/:id', requirePermission('fees:manage'), validate({ params: idParamSchema, body: updateFeeSchema }), feeController.update);
+router.patch('/:id', requirePermission('fees:update'), validate({ params: idParamSchema, body: updateFeeSchema }), feeController.update);
 router.post(
   '/:id/payments',
-  requirePermission('fees:manage'),
+  requirePermission('fees:create'),
   validate({ params: idParamSchema, body: addPaymentSchema }),
   feeController.addPayment,
 );

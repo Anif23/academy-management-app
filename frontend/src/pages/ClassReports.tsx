@@ -16,8 +16,10 @@ import { useAllEmployees } from '../hooks/useEmployees';
 
 import type { ClassReport } from '../types';
 import { formatDate } from '../utils/format';
+import { useCan } from '../hooks/usePermission';
 
 export default function ClassReports() {
+  const can = useCan();
   const table = useTableState();
   const { data, isLoading, isError, refetch } = useClassReports(table.params);
   const { data: batches } = useAllBatches();
@@ -66,7 +68,8 @@ export default function ClassReports() {
       headerClassName: 'text-right',
       className: 'text-right',
       render: (row) => (
-        <Button
+        <>{can('classreports:delete') && (
+<Button
           variant="ghost"
           size="icon"
           onClick={(e) => {
@@ -77,6 +80,7 @@ export default function ClassReports() {
         >
           <Trash2 className="h-4 w-4 text-red-500" />
         </Button>
+)}</>
       ),
     },
   ];
@@ -87,10 +91,12 @@ export default function ClassReports() {
         title="Class / Training Reports"
         description="Trainers log a report after every class session."
         action={
-          <Button onClick={() => setDrawerState({ mode: 'create' })}>
+          can('classreports:create') ? (
+<Button onClick={() => setDrawerState({ mode: 'create' })}>
             <Plus className="h-4 w-4" />
             New Report
           </Button>
+) : undefined
         }
       />
 
@@ -123,7 +129,7 @@ export default function ClassReports() {
         onPageChange={table.setPage}
         onPageSizeChange={table.setPageSize}
         emptyTitle="No class reports yet"
-        onRowClick={(row) => setDrawerState({ mode: 'edit', report: row })}
+        onRowClick={can('classreports:update') ? (row) => setDrawerState({ mode: 'edit', report: row }) : undefined}
       />
 
       <Drawer

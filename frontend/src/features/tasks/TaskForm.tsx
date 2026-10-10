@@ -1,17 +1,18 @@
 import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { Users, UserRound } from 'lucide-react';
-import { batchTaskSchema, taskSchema } from '../../schemas/taskSchema';
-import type { BatchTaskFormValues, TaskFormValues } from '../../schemas/taskSchema';
-import type { Batch, Student, StudentTask } from '../../types';
+import { batchTaskSchema, editTaskSchema, taskSchema } from '../../schemas/taskSchema';
+import type { BatchTaskFormValues, EditTaskFormValues, TaskFormValues } from '../../schemas/taskSchema';
+import type { Batch, Student, Task } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { FieldError, FormRow, Input, Label, Select, Textarea } from '../../components/ui/Field';
+import { FileUploadField } from '../../components/ui/FileUploadField';
 import { todayIso } from '../../utils/format';
 import { cn } from '../../utils/cn';
 
 interface TaskFormProps {
-  defaultValues?: Partial<StudentTask>;
+  defaultValues?: Partial<Task>;
   students: Student[];
   batches: Batch[];
   onSubmitIndividual: (values: TaskFormValues) => void;
@@ -23,80 +24,148 @@ interface TaskFormProps {
 export function TaskForm({ defaultValues, students, batches, onSubmitIndividual, onSubmitBatch, onCancel, isSubmitting }: TaskFormProps) {
   const isEditing = Boolean(defaultValues?.id);
   const [assignmentType, setAssignmentType] = useState<'individual' | 'batch'>(
-    defaultValues?.batchAssignmentId ? 'batch' : 'individual',
+    defaultValues?.assignmentType ?? 'individual',
   );
+
+  // Editing never changes who the task is assigned to — only its content —
+  // so it uses its own, simpler schema/form regardless of assignment type.
+  const editForm = useForm<EditTaskFormValues>({
+    resolver: zodResolver(editTaskSchema),
+    defaultValues: {
+      title: defaultValues?.title ?? '',
+      description: defaultValues?.description ?? '',
+      assignedDate: defaultValues?.assignedDate?.slice(0, 10) ?? todayIso(),
+      dueDate: defaultValues?.dueDate?.slice(0, 10) ?? todayIso(),
+      priority: defaultValues?.priority ?? 'Medium',
+    },
+  });
 
   const individualForm = useForm<TaskFormValues>({
     resolver: zodResolver(taskSchema),
     defaultValues: {
-      studentId: defaultValues?.studentId ?? '',
-      title: defaultValues?.title ?? '',
-      description: defaultValues?.description ?? '',
-      assignedDate: defaultValues?.assignedDate ?? todayIso(),
-      dueDate: defaultValues?.dueDate ?? todayIso(),
-      priority: defaultValues?.priority ?? 'Medium',
-      status: defaultValues?.status ?? 'Pending',
-      trainerRemarks: defaultValues?.trainerRemarks ?? '',
+      studentId: '',
+      title: '',
+      description: '',
+      assignedDate: todayIso(),
+      dueDate: todayIso(),
+      priority: 'Medium',
+      attachments: [],
     },
   });
 
   const batchForm = useForm<BatchTaskFormValues>({
     resolver: zodResolver(batchTaskSchema),
     defaultValues: {
-      batchId: defaultValues?.batchId ?? '',
-      title: defaultValues?.title ?? '',
-      description: defaultValues?.description ?? '',
-      assignedDate: defaultValues?.assignedDate ?? todayIso(),
-      dueDate: defaultValues?.dueDate ?? todayIso(),
-      priority: defaultValues?.priority ?? 'Medium',
-      status: defaultValues?.status ?? 'Pending',
-      trainerRemarks: defaultValues?.trainerRemarks ?? '',
+      batchId: '',
+      title: '',
+      description: '',
+      assignedDate: todayIso(),
+      dueDate: todayIso(),
+      priority: 'Medium',
+      attachments: [],
     },
   });
 
+  if (isEditing) {
+    return (
+      <form onSubmit={editForm.handleSubmit((values) => onSubmitIndividual(values as TaskFormValues))} noValidate className="space-y-4">
+        <div>
+          <Label htmlFor="edit-task-title" required>
+            Task Title
+          </Label>
+          <Input id="edit-task-title" error={editForm.formState.errors.title?.message} {...editForm.register('title')} />
+          <FieldError message={editForm.formState.errors.title?.message} />
+        </div>
+
+        <div>
+          <Label htmlFor="edit-task-description" required>
+            Description
+          </Label>
+          <Textarea id="edit-task-description" rows={3} error={editForm.formState.errors.description?.message} {...editForm.register('description')} />
+          <FieldError message={editForm.formState.errors.description?.message} />
+        </div>
+
+        <FormRow>
+          <div>
+            <Label htmlFor="edit-task-assigned" required>
+              Assigned Date
+            </Label>
+            <Input id="edit-task-assigned" type="date" error={editForm.formState.errors.assignedDate?.message} {...editForm.register('assignedDate')} />
+            <FieldError message={editForm.formState.errors.assignedDate?.message} />
+          </div>
+          <div>
+            <Label htmlFor="edit-task-due" required>
+              Due Date
+            </Label>
+            <Input id="edit-task-due" type="date" error={editForm.formState.errors.dueDate?.message} {...editForm.register('dueDate')} />
+            <FieldError message={editForm.formState.errors.dueDate?.message} />
+          </div>
+        </FormRow>
+
+        <div>
+          <Label htmlFor="edit-task-priority" required>
+            Priority
+          </Label>
+          <Select id="edit-task-priority" {...editForm.register('priority')}>
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+          </Select>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 pt-2">
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit" loading={isSubmitting}>
+            Save Changes
+          </Button>
+        </div>
+      </form>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      {!isEditing && (
-        <div>
-          <Label>Assignment Type</Label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setAssignmentType('individual')}
-              className={cn(
-                'flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors',
-                assignmentType === 'individual'
-                  ? 'border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300'
-                  : 'border-border text-text-secondary hover:bg-surface-hover',
-              )}
-            >
-              <UserRound className="h-4 w-4" />
-              Individual Student
-            </button>
-            <button
-              type="button"
-              onClick={() => setAssignmentType('batch')}
-              className={cn(
-                'flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors',
-                assignmentType === 'batch'
-                  ? 'border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300'
-                  : 'border-border text-text-secondary hover:bg-surface-hover',
-              )}
-            >
-              <Users className="h-4 w-4" />
-              Entire Batch
-            </button>
-          </div>
+      <div>
+        <Label>Assignment Type</Label>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setAssignmentType('individual')}
+            className={cn(
+              'flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors',
+              assignmentType === 'individual'
+                ? 'border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300'
+                : 'border-border text-text-secondary hover:bg-surface-hover',
+            )}
+          >
+            <UserRound className="h-4 w-4" />
+            Individual Student
+          </button>
+          <button
+            type="button"
+            onClick={() => setAssignmentType('batch')}
+            className={cn(
+              'flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors',
+              assignmentType === 'batch'
+                ? 'border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300'
+                : 'border-border text-text-secondary hover:bg-surface-hover',
+            )}
+          >
+            <Users className="h-4 w-4" />
+            Entire Batch
+          </button>
         </div>
-      )}
+      </div>
 
-      {assignmentType === 'individual' || isEditing ? (
+      {assignmentType === 'individual' ? (
         <form onSubmit={individualForm.handleSubmit(onSubmitIndividual)} noValidate className="space-y-4">
           <div>
             <Label htmlFor="task-student" required>
               Student
             </Label>
-            <Select id="task-student" disabled={isEditing} error={individualForm.formState.errors.studentId?.message} {...individualForm.register('studentId')}>
+            <Select id="task-student" error={individualForm.formState.errors.studentId?.message} {...individualForm.register('studentId')}>
               <option value="" disabled>
                 Select a student...
               </option>
@@ -142,32 +211,26 @@ export function TaskForm({ defaultValues, students, batches, onSubmitIndividual,
             </div>
           </FormRow>
 
-          <FormRow>
-            <div>
-              <Label htmlFor="task-priority" required>
-                Priority
-              </Label>
-              <Select id="task-priority" {...individualForm.register('priority')}>
-                <option value="Low">Low</option>
-                <option value="Medium">Medium</option>
-                <option value="High">High</option>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="task-status" required>
-                Status
-              </Label>
-              <Select id="task-status" {...individualForm.register('status')}>
-                <option value="Pending">Pending</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Completed">Completed</option>
-              </Select>
-            </div>
-          </FormRow>
+          <div>
+            <Label htmlFor="task-priority" required>
+              Priority
+            </Label>
+            <Select id="task-priority" {...individualForm.register('priority')}>
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+            </Select>
+          </div>
 
           <div>
-            <Label htmlFor="task-remarks">Trainer Remarks</Label>
-            <Textarea id="task-remarks" rows={2} {...individualForm.register('trainerRemarks')} />
+            <Label>Reference Attachments (optional)</Label>
+            <Controller
+              control={individualForm.control}
+              name="attachments"
+              render={({ field }) => (
+                <FileUploadField folder="task-attachments" value={field.value ?? []} onChange={field.onChange} maxFiles={5} label="Attach reference files" hint="Assignment briefs, starter files, etc." />
+              )}
+            />
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-2">
@@ -175,7 +238,7 @@ export function TaskForm({ defaultValues, students, batches, onSubmitIndividual,
               Cancel
             </Button>
             <Button type="submit" loading={isSubmitting}>
-              {isEditing ? 'Save Changes' : 'Assign Task'}
+              Assign Task
             </Button>
           </div>
         </form>
@@ -197,7 +260,7 @@ export function TaskForm({ defaultValues, students, batches, onSubmitIndividual,
             </Select>
             <FieldError message={batchForm.formState.errors.batchId?.message} />
             <p className="mt-1.5 text-xs text-text-muted">
-              An individual task record will be created for every active student in this batch, so progress can be tracked per student.
+              Every active student currently in this batch will get their own progress record, so you can track who has submitted.
             </p>
           </div>
 
@@ -234,32 +297,26 @@ export function TaskForm({ defaultValues, students, batches, onSubmitIndividual,
             </div>
           </FormRow>
 
-          <FormRow>
-            <div>
-              <Label htmlFor="batch-task-priority" required>
-                Priority
-              </Label>
-              <Select id="batch-task-priority" {...batchForm.register('priority')}>
-                <option value="Low">Low</option>
-                <option value="Medium">Medium</option>
-                <option value="High">High</option>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="batch-task-status" required>
-                Initial Status
-              </Label>
-              <Select id="batch-task-status" {...batchForm.register('status')}>
-                <option value="Pending">Pending</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Completed">Completed</option>
-              </Select>
-            </div>
-          </FormRow>
+          <div>
+            <Label htmlFor="batch-task-priority" required>
+              Priority
+            </Label>
+            <Select id="batch-task-priority" {...batchForm.register('priority')}>
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+            </Select>
+          </div>
 
           <div>
-            <Label htmlFor="batch-task-remarks">Trainer Remarks</Label>
-            <Textarea id="batch-task-remarks" rows={2} {...batchForm.register('trainerRemarks')} />
+            <Label>Reference Attachments (optional)</Label>
+            <Controller
+              control={batchForm.control}
+              name="attachments"
+              render={({ field }) => (
+                <FileUploadField folder="task-attachments" value={field.value ?? []} onChange={field.onChange} maxFiles={5} label="Attach reference files" hint="Assignment briefs, starter files, etc." />
+              )}
+            />
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-2">

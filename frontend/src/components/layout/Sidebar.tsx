@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
-import { GraduationCap, X } from 'lucide-react';
-import { navItemsForRole } from '../../routes/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { ChevronDown, GraduationCap, X } from 'lucide-react';
+import { navGroupsForPermissions } from '../../routes/navigation';
 import { useUiStore } from '../../store/uiStore';
 import { useBrandingStore } from '../../store/brandingStore';
 import { useAuthStore } from '../../store/authStore';
@@ -11,8 +11,41 @@ function SidebarContent({ onNavigate, onClose }: { onNavigate?: () => void; onCl
   const appName = useBrandingStore((s) => s.appName);
   const tagline = useBrandingStore((s) => s.tagline);
   const logoDataUrl = useBrandingStore((s) => s.logoDataUrl);
-  const role = useAuthStore((s) => s.user?.role);
-  const visibleItems = navItemsForRole(role);
+  const permissions = useAuthStore((s) => s.user?.permissions);
+  const location = useLocation();
+  const groups = useMemo(() => navGroupsForPermissions(permissions), [permissions]);
+
+  // Whichever group contains the current page starts expanded; the rest
+  // start collapsed so a long admin menu reads as a handful of labeled
+  // sections rather than one long scrolling list.
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    groups.forEach((group) => {
+      const label = group.label ?? '__top__';
+      initial[label] = group.items.some((item) => location.pathname.startsWith(item.path));
+    });
+    return initial;
+  });
+
+  // Keep the active page's group open if the route changes underneath us
+  // (e.g. navigating via a link elsewhere in the app, not the sidebar).
+  useEffect(() => {
+    setOpenGroups((prev) => {
+      const next = { ...prev };
+      groups.forEach((group) => {
+        const label = group.label ?? '__top__';
+        if (group.items.some((item) => location.pathname.startsWith(item.path))) {
+          next[label] = true;
+        }
+      });
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
+  function toggleGroup(label: string) {
+    setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -37,25 +70,57 @@ function SidebarContent({ onNavigate, onClose }: { onNavigate?: () => void; onCl
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        {visibleItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            onClick={onNavigate}
-             className={({ isActive }) =>
-              cn(
-                "animate-sidebar-item",
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300"
-                  : "text-text-secondary hover:bg-surface-hover hover:text-text-primary",
-              )
-            }
-          >
-            <item.icon className="h-4.5 w-4.5 shrink-0" />
-            <span className="truncate">{item.label}</span>
-          </NavLink>
-        ))}
+        {groups.map((group, groupIndex) => {
+          const groupKey = group.label ?? '__top__';
+          const isOpen = group.label === null || openGroups[groupKey];
+
+          return (
+            <div key={groupKey} className={groupIndex > 0 ? 'pt-2' : undefined}>
+              {group.label && (
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(groupKey)}
+                  aria-expanded={isOpen}
+                  className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-text-muted transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                >
+                  {group.label}
+                  <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', isOpen && 'rotate-180')} />
+                </button>
+              )}
+
+              <div
+                className={cn(
+                  'grid transition-all duration-200 ease-out',
+                  isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
+                )}
+              >
+                <div className="overflow-hidden">
+                  <div className="space-y-1 pt-1">
+                    {group.items.map((item) => (
+                      <NavLink
+                        key={item.path}
+                        to={item.path}
+                        onClick={onNavigate}
+                        className={({ isActive }) =>
+                          cn(
+                            'animate-sidebar-item',
+                            'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                            isActive
+                              ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300'
+                              : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary',
+                          )
+                        }
+                      >
+                        <item.icon className="h-4.5 w-4.5 shrink-0" />
+                        <span className="truncate">{item.label}</span>
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </nav>
 
       <div className="shrink-0 border-t border-border px-4 py-4">

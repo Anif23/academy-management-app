@@ -1,5 +1,7 @@
 const prisma = require('../config/prisma');
 const ApiError = require('../utils/ApiError');
+const { invalidate } = require('../utils/cache');
+const { CACHE_KEYS } = require('../constants/cacheKeys');
 const { CourseStatusMap } = require('../utils/enumMaps');
 const { parsePagination, buildPaginatedResult } = require('../utils/pagination');
 
@@ -51,6 +53,7 @@ async function create(input) {
       status: CourseStatusMap.toDb(input.status),
     },
   });
+  await invalidate(CACHE_KEYS.publicCourses, CACHE_KEYS.academyStats);
   return toPublic(course);
 }
 
@@ -59,6 +62,7 @@ async function update(id, patch) {
   if (data.status) data.status = CourseStatusMap.toDb(data.status);
 
   const course = await prisma.course.update({ where: { id }, data });
+  await invalidate(CACHE_KEYS.publicCourses, CACHE_KEYS.academyStats);
   return toPublic(course);
 }
 
@@ -73,6 +77,7 @@ async function remove(id) {
   }
 
   await prisma.course.delete({ where: { id } });
+  await invalidate(CACHE_KEYS.publicCourses, CACHE_KEYS.academyStats);
 }
 
 module.exports = { getAll, getAllRaw, getById, create, update, remove, toPublic };

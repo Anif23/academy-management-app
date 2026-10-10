@@ -3,15 +3,58 @@
 @tailwind utilities;
 
 :root {
-  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  /* Set at runtime by AnnouncementTicker to its own measured height (0 when no announcements are active). */
+  --ticker-h: 0px;
+}
+
+html {
+  /* Keeps the fixed ticker+navbar from covering the top of whatever section
+     scrollIntoView / a hash link lands on (e.g. #faq, #courses). */
+  scroll-padding-top: calc(var(--ticker-h, 0px) + 96px);
 }
 
 body {
   margin: 0;
+  margin-top: var(--ticker-h);
   background-color: #f8fafc;
   color: #0f172a;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: margin-top 0.3s ease;
+}
+
+/* Announcement ticker: two copies of the same track scroll left together,
+   so as the first slides fully offscreen the second is already in position —
+   an unbroken, end-to-end loop rather than a jump-cut restart. */
+.ticker-viewport {
+  /* Duration is set inline per render (based on measured content width) so
+     the scroll speed stays consistent regardless of how much is queued. */
+  animation-name: ticker-scroll;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.ticker-viewport:hover {
+  animation-play-state: paused;
+}
+
+@keyframes ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker-viewport {
+    animation: none;
+  }
+  .ticker-track[aria-hidden='true'] {
+    display: none;
+  }
 }
 
 /* Custom GSAP reveal classes */
@@ -19,4 +62,63 @@ body {
   opacity: 0;
   transform: translateY(30px);
   transition: none;
+}
+
+/* --------------------------------------------------------------------
+   Gradient brand treatment — used sparingly on headline accent words and
+   primary CTAs so the site reads as more premium/modern without touching
+   the base color tokens everything else already relies on.
+-------------------------------------------------------------------- */
+/* @layer utilities registers these as real Tailwind utilities, which is
+   required for group-hover:/hover: variants to work on them at all — a
+   plain top-level class is invisible to Tailwind's variant generation. */
+@layer utilities {
+  .text-gradient {
+    background-image: linear-gradient(90deg, #6366f1, #8b5cf6 60%, #d946ef);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .btn-gradient {
+    background-image: linear-gradient(135deg, #6366f1, #8b5cf6);
+    transition: background-position 0.4s ease, transform 0.15s ease, box-shadow 0.2s ease;
+    background-size: 160% 160%;
+    background-position: 0% 50%;
+  }
+  .btn-gradient:hover {
+    background-position: 100% 50%;
+    box-shadow: 0 10px 30px -8px rgba(99, 102, 241, 0.5);
+  }
+  .btn-gradient:active {
+    transform: scale(0.97);
+  }
+
+  .badge-gradient {
+    background-image: linear-gradient(90deg, rgba(99, 102, 241, 0.12), rgba(217, 70, 239, 0.12));
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    color: #6366f1;
+  }
+}
+
+.card-gradient-border {
+  position: relative;
+  isolation: isolate;
+}
+.card-gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6, #d946ef);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+}
+.card-gradient-border:hover::before {
+  opacity: 1;
 }

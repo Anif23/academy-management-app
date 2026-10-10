@@ -14,8 +14,10 @@ import { useAllStudents } from '../hooks/useStudents';
 import { useAllBatches } from '../hooks/useBatches';
 import type { CourseRecord } from '../types';
 import { formatCurrency } from '../utils/format';
+import { useCan } from '../hooks/usePermission';
 
 export default function Courses() {
+  const can = useCan();
   const table = useTableState();
   const { data, isLoading, isError, refetch } = useCourses(table.params);
   const { data: students } = useAllStudents();
@@ -64,7 +66,8 @@ export default function Courses() {
       headerClassName: 'text-right',
       className: 'text-right',
       render: (row) => (
-        <Button
+        <>{can('courses:delete') && (
+<Button
           variant="ghost"
           size="icon"
           onClick={(e) => {
@@ -76,6 +79,7 @@ export default function Courses() {
         >
           <Trash2 className="h-4 w-4 text-red-500" />
         </Button>
+)}</>
       ),
     },
   ];
@@ -86,10 +90,12 @@ export default function Courses() {
         title="Courses"
         description="Manage the course catalog. Course fees set here are used automatically when a student registers."
         action={
-          <Button onClick={() => setDrawerState({ mode: 'create' })}>
+          can('courses:create') ? (
+<Button onClick={() => setDrawerState({ mode: 'create' })}>
             <Plus className="h-4 w-4" />
             New Course
           </Button>
+) : undefined
         }
       />
 
@@ -113,7 +119,7 @@ export default function Courses() {
         onPageSizeChange={table.setPageSize}
         emptyTitle="No courses yet"
         emptyDescription="Add your first course to start registering students against it."
-        onRowClick={(row) => setDrawerState({ mode: 'edit', course: row })}
+        onRowClick={can('courses:update') ? (row) => setDrawerState({ mode: 'edit', course: row }) : undefined}
       />
 
       <Drawer open={Boolean(drawerState)} onClose={() => setDrawerState(null)} title={drawerState?.mode === 'edit' ? 'Edit Course' : 'New Course'}>

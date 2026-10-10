@@ -12,10 +12,12 @@ import { useTableState } from '../hooks/useTableState';
 import { useCreateUser, useDeleteUser, useUpdateUser, useUsers } from '../hooks/useUsers';
 import type { ManagedUser } from '../hooks/useUsers';
 import { formatDate, initials } from '../utils/format';
+import { useCan } from '../hooks/usePermission';
 
-const ROLE_LABELS: Record<string, string> = { ADMIN: 'Admin', STAFF: 'Staff', STUDENT: 'Student' };
+const ROLE_LABELS: Record<string, string> = { ADMIN: 'Admin', STAFF: 'Trainer', COUNSELLOR: 'Counsellor', STUDENT: 'Student' };
 
 export default function Users() {
+  const can = useCan();
   const table = useTableState();
   const { data, isLoading, isError, refetch } = useUsers(table.params);
 
@@ -43,7 +45,6 @@ export default function Users() {
       ),
     },
     { key: 'role', header: 'Role', render: (row) => <StatusBadge status={ROLE_LABELS[row.role] ?? row.role} /> },
-    { key: 'department', header: 'Department', render: (row) => row.department || '—' },
     { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status} /> },
     { key: 'createdAt', header: 'Created', render: (row) => formatDate(row.createdAt) },
     {
@@ -52,7 +53,8 @@ export default function Users() {
       headerClassName: 'text-right',
       className: 'text-right',
       render: (row) => (
-        <Button
+        <>{can('users:delete') && (
+<Button
           variant="ghost"
           size="icon"
           onClick={(e) => {
@@ -63,6 +65,7 @@ export default function Users() {
         >
           <Trash2 className="h-4 w-4 text-red-500" />
         </Button>
+)}</>
       ),
     },
   ];
@@ -71,12 +74,14 @@ export default function Users() {
     <div>
       <PageHeader
         title="User Accounts"
-        description="Manage login accounts and roles for Admin, Staff, and Student users."
+        description="Manage login accounts and roles for Admin, Trainer, Counsellor, and Student users."
         action={
-          <Button onClick={() => setDrawerState({ mode: 'create' })}>
+          can('users:create') ? (
+<Button onClick={() => setDrawerState({ mode: 'create' })}>
             <Plus className="h-4 w-4" />
             New Account
           </Button>
+) : undefined
         }
       />
 
@@ -96,14 +101,14 @@ export default function Users() {
         onPageChange={table.setPage}
         onPageSizeChange={table.setPageSize}
         emptyTitle="No user accounts yet"
-        onRowClick={(row) => setDrawerState({ mode: 'edit', user: row })}
+        onRowClick={can('users:update') ? (row) => setDrawerState({ mode: 'edit', user: row }) : undefined}
       />
 
       <Drawer
         open={Boolean(drawerState)}
         onClose={() => setDrawerState(null)}
         title={drawerState?.mode === 'edit' ? 'Edit User' : 'New User Account'}
-        description={drawerState?.mode === 'edit' ? 'Update role, status, or contact details.' : 'Create a login for Admin, Staff, or a Student.'}
+        description={drawerState?.mode === 'edit' ? 'Update role, status, or contact details.' : 'Create a login for an Admin, Trainer, Counsellor, or Student.'}
       >
         {drawerState && (
           <UserForm

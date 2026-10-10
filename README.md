@@ -41,11 +41,17 @@ safety.
 ### Option A — Docker Compose (fastest)
 
 ```bash
+cp .env.example .env
+# Set POSTGRES_PASSWORD to a unique URL-safe value and generate two different
+# JWT secrets with: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 docker compose up --build
 ```
 
 This starts Postgres, Redis, the backend (running migrations automatically
 on boot), and the admin frontend behind nginx.
+The Compose stack is for local development only, binds its ports to localhost,
+and refuses to start with empty database or JWT secrets. Do not use it as a
+production deployment configuration.
 
 - Frontend: http://localhost:5173
 - Backend health check: http://localhost:5000/health
@@ -67,7 +73,7 @@ docker compose exec backend npx prisma db seed
 ```bash
 # 1. Backend
 cd backend
-cp .env.example .env        # then edit DATABASE_URL / secrets as needed
+cp .env.example .env        # set DATABASE_URL and generate both required JWT secrets
 npm install
 npx prisma migrate deploy   # applies the committed migration
 npx prisma generate
@@ -138,7 +144,8 @@ Created by the seed script (`backend/prisma/seed.js`):
 | Role    | Email                   | Password   |
 | ------- | ------------------------ | ---------- |
 | Admin   | admin@academypro.com    | admin123   |
-| Staff   | trainer@academypro.com  | staff123   |
+| Trainer (Staff) | trainer@academypro.com  | staff123   |
+| Counsellor | counsellor@academypro.com | counsellor123 |
 | Student | student@academypro.com  | student123 |
 
 ---
@@ -272,8 +279,12 @@ compensate during development:
 
 ## Environment Variables
 
-See `backend/.env.example` and `frontend/.env.example`. Never commit a real
-`.env` file — generate fresh secrets before deploying anywhere real:
+See `backend/.env.example`, `frontend/.env.example`, and
+`public-website/.env.example`. The root `.env.example` is only for the local
+Docker Compose stack. Never commit a real `.env` file; the repository ignore
+rules exclude local environment files while keeping the example templates.
+Set non-empty, unique JWT secrets in `backend/.env` before starting the backend.
+Generate each secret with:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"

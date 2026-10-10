@@ -9,13 +9,12 @@ const { createWalkInSchema, updateWalkInSchema } = require('../validators/walkIn
 const router = express.Router();
 
 router.use(requireAuth);
-router.use(requirePermission('walkins:manage'));
 
-router.get('/', validate({ query: paginationQuerySchema }), walkInController.getAll);
-router.get('/all', walkInController.getAllRaw);
-router.get('/:id', validate({ params: idParamSchema }), walkInController.getById);
-router.post('/', validate({ body: createWalkInSchema }), walkInController.create);
-router.patch('/:id', validate({ params: idParamSchema, body: updateWalkInSchema }), walkInController.update);
-router.delete('/:id', validate({ params: idParamSchema }), walkInController.remove);
+router.get('/', requirePermission('walkins:read'), validate({ query: paginationQuerySchema }), walkInController.getAll);
+router.get('/all', requirePermission('walkins:read'), walkInController.getAllRaw);
+router.get('/:id', requirePermission('walkins:read'), validate({ params: idParamSchema }), walkInController.getById);
+router.post('/', requirePermission('walkins:create'), validate({ body: createWalkInSchema }), walkInController.create);
+router.patch('/:id', requirePermission('walkins:update'), validate({ params: idParamSchema, body: updateWalkInSchema }), walkInController.update);
+router.delete('/:id', requirePermission('walkins:delete'), validate({ params: idParamSchema }), walkInController.remove);
 
 module.exports = router;

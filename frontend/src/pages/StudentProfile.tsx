@@ -24,13 +24,24 @@ import { StudentTasksTab } from '../features/students/StudentTasksTab';
 import { StudentPerformanceTab } from '../features/students/StudentPerformanceTab';
 import { formatDate, initials } from '../utils/format';
 import { cn } from '../utils/cn';
+import { useCan } from '../hooks/usePermission';
 
 const TABS = ['Overview', 'Fees', 'Attendance', 'Class Reports', 'Tasks', 'Performance'] as const;
+// Each tab needs the matching read permission — a tab the role can't load is hidden, not left to 403.
+const TAB_PERMISSION: Record<string, string | undefined> = {
+  Fees: 'fees:read',
+  Attendance: 'attendance:read',
+  'Class Reports': 'classreports:read',
+  Tasks: 'tasks:read',
+  Performance: 'performance:read',
+};
 type Tab = (typeof TABS)[number];
 
 export default function StudentProfile() {
   const { studentId } = useParams<{ studentId: string }>();
   const navigate = useNavigate();
+  const can = useCan();
+  const visibleTabs = TABS.filter((tab) => !TAB_PERMISSION[tab] || can(TAB_PERMISSION[tab] as string));
   const [activeTab, setActiveTab] = useState<Tab>('Overview');
   const [editOpen, setEditOpen] = useState(false);
 
@@ -39,11 +50,11 @@ export default function StudentProfile() {
   const { data: batches } = useAllBatches();
   const { data: employees } = useAllEmployees();
   const { data: courses } = useAllCourses();
-  const { data: fee } = useFeeByStudent(studentId);
-  const { data: attendance } = useAttendanceByStudent(studentId);
+  const { data: fee } = useFeeByStudent(can('fees:read') ? studentId : undefined);
+  const { data: attendance } = useAttendanceByStudent(can('attendance:read') ? studentId : undefined);
   const { data: allClassReports } = useAllClassReports();
-  const { data: tasks } = useTasksByStudent(studentId);
-  const { data: performance } = usePerformanceByStudent(studentId);
+  const { data: tasks } = useTasksByStudent(can('tasks:read') ? studentId : undefined);
+  const { data: performance } = usePerformanceByStudent(can('performance:read') ? studentId : undefined);
   const updateMutation = useUpdateStudent();
 
   const counsellors = useMemo(() => employees?.filter((e) => e.type === 'Counsellor') ?? [], [employees]);
@@ -138,7 +149,7 @@ export default function StudentProfile() {
       </div>
 
       <div className="mb-5 flex flex-wrap gap-1 border-b border-border">
-        {TABS.map((tab) => (
+        {visibleTabs.map((tab) => (
           <button
             key={tab}
             type="button"

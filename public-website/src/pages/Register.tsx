@@ -7,6 +7,7 @@ import { useCourses } from '../hooks/useCourses';
 import { useBatches } from '../hooks/useBatches';
 import { registrationApi } from '../api/registrations';
 import { CheckCircle, ArrowRight, ArrowLeft, Loader2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { cn } from '../utils/cn';
 
 const registrationSchema = z.object({
@@ -18,6 +19,9 @@ const registrationSchema = z.object({
   qualification: z.string().optional(),
   location: z.string().optional(),
   remarks: z.string().optional(),
+  consent: z.boolean().refine((v) => v === true, {
+    message: 'Please agree to the Privacy Policy and Terms & Conditions to continue.',
+  }),
 });
 
 type RegistrationFormData = z.infer<typeof registrationSchema>;
@@ -38,6 +42,7 @@ const Register = () => {
     resolver: zodResolver(registrationSchema),
     defaultValues: {
       courseInterestedId: courseIdFromUrl || '',
+      consent: false,
     },
   });
 
@@ -51,15 +56,41 @@ const Register = () => {
   const formValues = form.watch();
   const { data: availableBatches, isLoading: batchesLoading } = useBatches(selectedCourseId);
 
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   const onSubmit = async (data: RegistrationFormData) => {
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
-      await registrationApi.register(data);
+      const { consent: _consent, ...payload } = data;
+      await registrationApi.register(payload);
       setIsSuccess(true);
     } catch (error) {
-      alert('Registration failed. Please try again.');
+      setSubmitError("We couldn't submit your registration. Please check your details and try again, or contact us directly.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // The actual registration API call is only ever triggered by one thing:
+  // a direct click on the "Complete Registration" button at step 4 (see
+  // its onClick below). There is deliberately no other path to it — the
+  // <form>'s own onSubmit is a no-op (see className="space-y-8" form tag),
+  // so no keypress, autofill, or mobile keyboard "Go/Enter" action can
+  // ever trigger a real submission early, regardless of which step is
+  // showing.
+  const handleCompleteRegistration = () => form.handleSubmit(onSubmit)();
+
+  const handleFormKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    // Enter anywhere in the form just advances to the next step — it can
+    // never submit, because nothing here calls onSubmit directly.
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (step === 4) {
+        handleCompleteRegistration();
+      } else {
+        nextStep();
+      }
     }
   };
 
@@ -130,7 +161,11 @@ const Register = () => {
             <div className="text-accent font-bold text-xl">{step}/4</div>
           </div>
 
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <form
+            onSubmit={(e) => e.preventDefault()}
+            onKeyDown={handleFormKeyDown}
+            className="space-y-8"
+          >
             {step === 1 && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="space-y-2">
@@ -160,6 +195,22 @@ const Register = () => {
                     placeholder="john@example.com"
                   />
                   <p className="text-xs text-red-500">{form.formState.errors.email?.message}</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-secondary">Qualification</label>
+                  <input
+                    {...form.register('qualification')}
+                    className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-accent outline-none transition-all"
+                    placeholder="e.g. B.Sc Computer Science"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-secondary">Location</label>
+                  <input
+                    {...form.register('location')}
+                    className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-accent outline-none transition-all"
+                    placeholder="City, State"
+                  />
                 </div>
               </div>
             )}
@@ -198,7 +249,7 @@ const Register = () => {
               <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="flex justify-between items-center">
                   <label className="text-sm font-semibold text-secondary">Select Available Batch</label>
-                  <span className="text-xs text-slate-400">(Optional)</span>
+                  <span className="text-xs text-slate-500">(Optional)</span>
                 </div>
                 {batchesLoading ? (
                   <div className="grid grid-cols-1 gap-4">
@@ -246,6 +297,18 @@ const Register = () => {
                     <span className="text-secondary">Email</span>
                     <span className="font-bold text-primary">{form.getValues('email')}</span>
                   </div>
+                  {form.getValues('qualification') && (
+                    <div className="flex justify-between py-2 border-b border-slate-200">
+                      <span className="text-secondary">Qualification</span>
+                      <span className="font-bold text-primary">{form.getValues('qualification')}</span>
+                    </div>
+                  )}
+                  {form.getValues('location') && (
+                    <div className="flex justify-between py-2 border-b border-slate-200">
+                      <span className="text-secondary">Location</span>
+                      <span className="font-bold text-primary">{form.getValues('location')}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between py-2">
                     <span className="text-secondary">Course</span>
                     <span className="font-bold text-accent">
@@ -259,9 +322,37 @@ const Register = () => {
                     </span>
                   </div>
                 </div>
-                <div className="p-4 rounded-xl bg-blue-50 border border-blue-100 text-blue-700 text-sm">
-                  By clicking submit, you agree to be contacted by the Academy staff via WhatsApp or Email.
-                </div>
+                <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-secondary">
+                  <input
+                    type="checkbox"
+                    {...form.register('consent')}
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-accent focus:ring-accent"
+                    aria-invalid={Boolean(form.formState.errors.consent)}
+                    aria-describedby={form.formState.errors.consent ? 'consent-error' : undefined}
+                  />
+                  <span>
+                    I agree to be contacted by the Academy via WhatsApp, Email or phone regarding my registration,
+                    and I have read and accept the{' '}
+                    <Link to="/privacy-policy" target="_blank" className="font-semibold text-accent underline underline-offset-2">
+                      Privacy Policy
+                    </Link>{' '}
+                    and{' '}
+                    <Link to="/terms" target="_blank" className="font-semibold text-accent underline underline-offset-2">
+                      Terms &amp; Conditions
+                    </Link>
+                    .
+                  </span>
+                </label>
+                {form.formState.errors.consent && (
+                  <p id="consent-error" role="alert" className="text-sm font-medium text-red-600">
+                    {form.formState.errors.consent.message}
+                  </p>
+                )}
+                {submitError && (
+                  <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
+                    {submitError}
+                  </p>
+                )}
               </div>
             )}
 
@@ -288,11 +379,20 @@ const Register = () => {
                   </button>
                 ) : (
                   <button
-                    type="submit"
+                    type="button"
+                    onClick={handleCompleteRegistration}
                     disabled={isSubmitting}
+                    aria-busy={isSubmitting}
                     className="px-12 py-4 bg-primary text-white rounded-xl font-bold flex items-center gap-2 hover:bg-primary-dark transition-all active:scale-95 disabled:opacity-50"
                   >
-                    {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : 'Complete Registration'}
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 size={20} className="animate-spin" aria-hidden="true" />
+                        Submitting…
+                      </>
+                    ) : (
+                      'Complete Registration'
+                    )}
                   </button>
                 )}
               </div>

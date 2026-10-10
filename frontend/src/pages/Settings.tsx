@@ -2,13 +2,17 @@ import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { RotateCcw, Upload } from 'lucide-react';
+import { Loader2, RotateCcw, Upload } from 'lucide-react';
 import { PageHeader } from '../components/common/PageHeader';
 import { Card, CardBody, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { FieldError, Input, Label } from '../components/ui/Field';
 import { useBrandingStore } from '../store/brandingStore';
-import { toastSuccess } from '../store/toastStore';
+import { brandingApi } from '../services/brandingApi';
+import { uploadFile } from '../services/uploadApi';
+import { toastError, toastSuccess } from '../store/toastStore';
+
+const DEFAULTS = { appName: 'Academy Management', tagline: 'For Managing Everything' };
 
 const brandingSchema = z.object({
   appName: z.string().min(2, 'App name must be at least 2 characters.').max(40, 'Keep it under 40 characters.'),
@@ -22,10 +26,11 @@ export default function Settings() {
   const tagline = useBrandingStore((s) => s.tagline);
   const logoDataUrl = useBrandingStore((s) => s.logoDataUrl);
   const setBranding = useBrandingStore((s) => s.setBranding);
-  const resetBranding = useBrandingStore((s) => s.resetBranding);
 
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState(logoDataUrl);
   const [logoError, setLogoError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   const {
     register,
@@ -39,30 +44,62 @@ export default function Settings() {
   function handleLogoChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (file.size > 1024 * 1024) {
-      setLogoError('Logo must be smaller than 1 MB.');
+    if (file.size > 2 * 1024 * 1024) {
+      setLogoError('Logo must be smaller than 2 MB.');
       return;
     }
     setLogoError('');
-    const reader = new FileReader();
-    reader.onload = () => setLogoPreview(reader.result as string);
-    reader.readAsDataURL(file);
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
   }
 
-  function onSubmit(values: BrandingFormValues) {
-    setBranding({ appName: values.appName, tagline: values.tagline ?? '', logoDataUrl: logoPreview });
-    toastSuccess('Branding updated successfully.', 'Your changes are visible across the whole app immediately.');
+  async function onSubmit(values: BrandingFormValues) {
+    setIsSaving(true);
+    try {
+      let logoUrl: string | undefined;
+      if (logoFile) {
+        const uploaded = await uploadFile(logoFile, 'misc');
+        logoUrl = uploaded.url;
+      }
+
+      const saved = await brandingApi.update({
+        appName: values.appName,
+        tagline: values.tagline ?? '',
+        ...(logoUrl ? { logoUrl } : {}),
+      });
+
+      setBranding({
+        appName: saved.appName,
+        tagline: saved.tagline,
+        logoDataUrl: logoUrl ?? logoDataUrl,
+      });
+      setLogoFile(null);
+      toastSuccess('Branding updated successfully.', 'Visible to every admin, everywhere — not just this browser.');
+    } catch (error) {
+      toastError('Could not save branding', error instanceof Error ? error.message : undefined);
+    } finally {
+      setIsSaving(false);
+    }
   }
 
-  function handleReset() {
-    resetBranding();
-    setLogoPreview('');
-    toastSuccess('Branding reset to defaults.');
+  async function handleReset() {
+    setIsSaving(true);
+    try {
+      const saved = await brandingApi.update({ appName: DEFAULTS.appName, tagline: DEFAULTS.tagline, logoUrl: '' });
+      setBranding({ appName: saved.appName, tagline: saved.tagline, logoDataUrl: '' });
+      setLogoPreview('');
+      setLogoFile(null);
+      toastSuccess('Branding reset to defaults.');
+    } catch (error) {
+      toastError('Could not reset branding', error instanceof Error ? error.message : undefined);
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
     <div>
-      <PageHeader title="Settings" description="Customize how AcademyPro looks for everyone using this workspace." />
+      <PageHeader title="Settings" description="Customize how the app looks for every admin — stored on the server, not just this browser." />
 
       <Card>
         <CardHeader title="App Branding" description="Update the app name, tagline, and logo shown in the sidebar and login screen." />
@@ -83,7 +120,7 @@ export default function Settings() {
                 </label>
                 <input id="logo-upload" type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
                 {logoError && <p className="mt-1 text-xs font-medium text-red-500">{logoError}</p>}
-                <p className="mt-1 text-xs text-text-muted">PNG or JPG, under 1 MB. Square images work best.</p>
+                <p className="mt-1 text-xs text-text-muted">PNG or JPG, under 2 MB. Square images work best.</p>
               </div>
             </div>
 
@@ -102,12 +139,12 @@ export default function Settings() {
             </div>
 
             <div className="flex items-center justify-between border-t border-border pt-4">
-              <Button type="button" variant="ghost" onClick={handleReset}>
+              <Button type="button" variant="ghost" onClick={handleReset} disabled={isSaving}>
                 <RotateCcw className="h-3.5 w-3.5" />
                 Reset to defaults
               </Button>
-              <Button type="submit" disabled={!isDirty && logoPreview === logoDataUrl}>
-                Save Branding
+              <Button type="submit" disabled={isSaving || (!isDirty && !logoFile)}>
+                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Branding'}
               </Button>
             </div>
           </form>

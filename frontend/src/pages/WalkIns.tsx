@@ -16,10 +16,12 @@ import { useAllEmployees } from '../hooks/useEmployees';
 import { useAllCourses } from '../hooks/useCourses';
 import type { WalkIn } from '../types';
 import { formatDate } from '../utils/format';
+import { useCan } from '../hooks/usePermission';
 
 const LEAD_STATUSES = ['New', 'Contacted', 'Counselling', 'Interested', 'Admission', 'Not Interested'];
 
 export default function WalkIns() {
+  const can = useCan();
   const navigate = useNavigate();
   const table = useTableState();
   const { data, isLoading, isError, refetch } = useWalkIns(table.params);
@@ -61,9 +63,23 @@ export default function WalkIns() {
       ),
     },
     { key: 'courseInterested', header: 'Course', render: (row) => row.courseInterested },
+    { key: 'batch', header: 'Batch', render: (row) => (row.batch ? row.batch.name : <span className="text-text-muted">Not chosen</span>) },
     { key: 'source', header: 'Source', render: (row) => row.source },
     { key: 'counsellorId', header: 'Counsellor', render: (row) => counsellorName(row.counsellorId) },
     { key: 'enquiryDate', header: 'Enquiry Date', sortable: true, render: (row) => formatDate(row.enquiryDate) },
+    {
+      key: 'followUpDate',
+      header: 'Follow-up Date',
+      sortable: true,
+      render: (row) =>
+        row.followUpDate ? (
+          <span className={row.status !== 'Admission' && row.status !== 'Not Interested' ? 'font-medium text-amber-600 dark:text-amber-400' : undefined}>
+            {formatDate(row.followUpDate)}
+          </span>
+        ) : (
+          <span className="text-text-muted">—</span>
+        ),
+    },
     { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status} /> },
     {
       key: 'actions',
@@ -72,7 +88,7 @@ export default function WalkIns() {
       className: 'text-right',
       render: (row) => (
         <div className="flex items-center justify-end gap-1.5">
-          {row.status !== 'Admission' && row.status !== 'Not Interested' && (
+          {can('students:create') && row.status !== 'Admission' && row.status !== 'Not Interested' && (
             <Button
               variant="outline"
               size="sm"
@@ -85,7 +101,8 @@ export default function WalkIns() {
               <UserCheck className="h-3.5 w-3.5" />
             </Button>
           )}
-          <Button
+          {can('walkins:delete') && (
+<Button
             variant="ghost"
             size="icon"
             onClick={(e) => {
@@ -96,6 +113,7 @@ export default function WalkIns() {
           >
             <Trash2 className="h-4 w-4 text-red-500" />
           </Button>
+)}
         </div>
       ),
     },
@@ -107,10 +125,12 @@ export default function WalkIns() {
         title="Student Walk-ins"
         description="Manage enquiries from reception, counsellors, and marketing channels."
         action={
-          <Button onClick={() => setDrawerState({ mode: 'create' })}>
+          can('walkins:create') ? (
+<Button onClick={() => setDrawerState({ mode: 'create' })}>
             <Plus className="h-4 w-4" />
             New Enquiry
           </Button>
+) : undefined
         }
       />
 
@@ -144,7 +164,7 @@ export default function WalkIns() {
         onPageSizeChange={table.setPageSize}
         emptyTitle="No walk-in enquiries yet"
         emptyDescription="New enquiries from reception or marketing will appear here."
-        onRowClick={(row) => setDrawerState({ mode: 'edit', walkIn: row })}
+        onRowClick={can('walkins:update') ? (row) => setDrawerState({ mode: 'edit', walkIn: row }) : undefined}
       />
 
       <Drawer

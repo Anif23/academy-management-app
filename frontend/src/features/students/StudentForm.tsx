@@ -18,6 +18,11 @@ interface StudentFormProps {
   isSubmitting?: boolean;
   submitLabel?: string;
   showPhotoUpload?: boolean;
+  /** When set (a STAFF/counsellor user), the counsellor field is locked
+   * to them instead of showing an editable dropdown — the backend forces
+   * this anyway, so an editable-but-overridden picker would just be
+   * confusing. */
+  lockedCounsellor?: { id: string; name: string };
 }
 
 export function StudentForm({
@@ -30,6 +35,7 @@ export function StudentForm({
   isSubmitting,
   submitLabel,
   showPhotoUpload = true,
+  lockedCounsellor,
 }: StudentFormProps) {
   const activeCourses = courses.filter((c) => c.status === 'Active' || c.id === defaultValues?.courseId);
 
@@ -48,7 +54,7 @@ export function StudentForm({
       joiningDate: defaultValues?.joiningDate ?? todayIso(),
       batchId: defaultValues?.batchId ?? batches[0]?.id ?? '',
       mode: defaultValues?.mode ?? 'Offline',
-      counsellorId: defaultValues?.counsellorId ?? counsellors[0]?.id ?? '',
+      counsellorId: defaultValues?.counsellorId ?? lockedCounsellor?.id ?? counsellors[0]?.id ?? '',
       status: defaultValues?.status ?? 'Active',
       walkInId: defaultValues?.walkInId,
     };
@@ -252,13 +258,20 @@ export function StudentForm({
             <Label htmlFor="reg-counsellor" required>
               Assigned Counsellor
             </Label>
-            <Select id="reg-counsellor" error={errors.counsellorId?.message} {...register('counsellorId')}>
-              {counsellors.map((counsellor) => (
-                <option key={counsellor.id} value={counsellor.id}>
-                  {counsellor.name}
-                </option>
-              ))}
-            </Select>
+            {lockedCounsellor ? (
+              <>
+                <Input id="reg-counsellor" value={`${lockedCounsellor.name} (you)`} disabled />
+                <input type="hidden" {...register('counsellorId')} value={lockedCounsellor.id} />
+              </>
+            ) : (
+              <Select id="reg-counsellor" error={errors.counsellorId?.message} {...register('counsellorId')}>
+                {counsellors.map((counsellor) => (
+                  <option key={counsellor.id} value={counsellor.id}>
+                    {counsellor.name}
+                  </option>
+                ))}
+              </Select>
+            )}
             <FieldError message={errors.counsellorId?.message} />
           </div>
         </FormRow>

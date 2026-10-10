@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore';
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const hasCheckedSession = useAuthStore((s) => s.hasCheckedSession);
+  const mustChangePassword = useAuthStore((s) => s.user?.mustChangePassword);
   const location = useLocation();
 
   // Don't redirect to /login based on stale localStorage before we've had a
@@ -20,6 +21,13 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  // A user with a forced-pending password change can't reach anything else
+  // in the app — every protected route funnels here first — until they
+  // actually change it.
+  if (mustChangePassword && location.pathname !== '/change-password') {
+    return <Navigate to="/change-password" replace />;
   }
 
   return <>{children}</>;

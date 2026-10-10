@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+
+# Environment files (keep example templates)
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Build and test output
+dist/
+build/
+coverage/
+.vite/
+.cache/
+.turbo/
+*.tsbuildinfo
+
+# Local uploads and generated analysis artifacts
+/backend/uploads/
+/graphify-out/
+
+# Local databases and logs
+*.db
+*.sqlite
+*.sqlite3
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

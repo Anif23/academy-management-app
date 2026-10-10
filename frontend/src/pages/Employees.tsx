@@ -14,10 +14,12 @@ import { useCreateEmployee, useDeleteEmployee, useEmployees, useUpdateEmployee }
 import { useAllBatches } from '../hooks/useBatches';
 import type { Employee } from '../types';
 import { formatDate, initials } from '../utils/format';
+import { useCan } from '../hooks/usePermission';
 
 const EMPLOYEE_TYPES = ['Trainer', 'Developer', 'Designer', 'Video Editor', 'Digital Marketing', 'Counsellor'];
 
 export default function Employees() {
+  const can = useCan();
   const table = useTableState();
   const { data, isLoading, isError, refetch } = useEmployees(table.params);
   const { data: batches } = useAllBatches();
@@ -76,7 +78,8 @@ export default function Employees() {
       headerClassName: 'text-right',
       className: 'text-right',
       render: (row) => (
-        <Button
+        <>{can('staff:delete') && (
+<Button
           variant="ghost"
           size="icon"
           onClick={(e) => {
@@ -87,6 +90,7 @@ export default function Employees() {
         >
           <Trash2 className="h-4 w-4 text-red-500" />
         </Button>
+)}</>
       ),
     },
   ];
@@ -97,10 +101,12 @@ export default function Employees() {
         title="Employees / Trainer Allocation"
         description="Manage trainers, developers, designers, and support staff."
         action={
-          <Button onClick={() => setDrawerState({ mode: 'create' })}>
+          can('staff:create') ? (
+<Button onClick={() => setDrawerState({ mode: 'create' })}>
             <Plus className="h-4 w-4" />
             Add Employee
           </Button>
+) : undefined
         }
       />
 
@@ -133,7 +139,7 @@ export default function Employees() {
         onPageChange={table.setPage}
         onPageSizeChange={table.setPageSize}
         emptyTitle="No employees found"
-        onRowClick={(row) => setDrawerState({ mode: 'edit', employee: row })}
+        onRowClick={can('staff:update') ? (row) => setDrawerState({ mode: 'edit', employee: row }) : undefined}
       />
 
       <Drawer

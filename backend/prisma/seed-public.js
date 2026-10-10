@@ -10,7 +10,12 @@ async function seedAcademy() {
     create: {
       id: 'singleton',
       name: 'Academy Pro',
-      logoUrl: 'https://thumbs.dreamstime.com/b/academy-logo-element-vector-illustration-decorative-design-191487693.jpg',
+      // No seeded logo: the previous placeholder linked to a watermarked
+      // Dreamstime preview image, which isn't licensed for use — that's a
+      // real copyright risk once the site is live. Upload a properly
+      // licensed/owned logo from Academy Settings; until then the site
+      // falls back to a plain letter avatar.
+      logoUrl: null,
       email: 'info@academypro.com',
       phone: '+91 98765 43210',
       whatsapp: '+91 98765 43210',
@@ -22,6 +27,16 @@ async function seedAcademy() {
       mission: 'To empower students with practical, industry-ready skills through hands-on mentorship.',
       vision: 'To be the most trusted hub for technical excellence and career acceleration.',
       workingHours: 'Mon - Sat: 9:00 AM - 7:00 PM',
+      // Left blank intentionally — these must be the academy's real
+      // registered name/number and a real grievance contact (required by
+      // India's DPDP Act). Fill them in from Academy Settings → Legal &
+      // Compliance before going live; the Privacy Policy page reads these
+      // fields directly.
+      legalName: null,
+      registrationNumber: null,
+      grievanceOfficerName: null,
+      grievanceOfficerEmail: null,
+      grievanceOfficerPhone: null,
     },
   });
 
@@ -65,31 +80,34 @@ async function seedAcademy() {
     });
   }
 
-  // 3. Testimonials
-  const testimonials = [
+  // 3. Testimonials — intentionally none by default. Seeded placeholder
+  // "reviews" attributed to invented people (with stock avatar-generator
+  // photos) would be a false/fake testimonial once the site is live and
+  // could expose the academy to consumer-protection and advertising-law
+  // risk. Add only real, verifiable student testimonials via Academy
+  // Content → Student Testimonials in the admin panel.
+
+  // 4. Announcements — the running offer/alert strip at the top of the public site.
+  const announcements = [
     {
-      id: 'testimonial-1',
-      studentName: 'Rahul Sharma',
-      role: 'Frontend Developer at TechCorp',
-      content: 'Academy Pro changed my life. The practical approach to learning React and Node.js helped me land a job within 2 months of completion!',
-      rating: 5,
-      photo: 'https://i.pravatar.cc/150?u=rahul',
+      id: 'announcement-1',
+      message: 'Admissions open for the new Full-Stack Development batch — limited seats.',
+      tag: 'New Batch',
+      order: 1,
     },
     {
-      id: 'testimonial-2',
-      studentName: 'Sneha Patel',
-      role: 'UI/UX Designer at Creative Studio',
-      content: 'The mentorship here is top-notch. I loved the project-based learning and the constant support from the trainers.',
-      rating: 5,
-      photo: 'https://i.pravatar.cc/150?u=sneha',
+      id: 'announcement-2',
+      message: 'Refer a friend and both of you get a fee discount on enrollment.',
+      tag: 'Offer',
+      order: 2,
     },
   ];
 
-  for (const t of testimonials) {
-    await prisma.testimonial.upsert({
-      where: { id: t.id },
-      update: { studentName: t.studentName, role: t.role, content: t.content, rating: t.rating, photo: t.photo },
-      create: t,
+  for (const a of announcements) {
+    await prisma.announcement.upsert({
+      where: { id: a.id },
+      update: { message: a.message, tag: a.tag, order: a.order },
+      create: a,
     });
   }
 

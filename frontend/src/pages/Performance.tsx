@@ -21,6 +21,7 @@ import { getGrade } from '../utils/performance';
 import type { PerformanceRecord } from '../types';
 import { formatDate } from '../utils/format';
 import { Select } from '../components/ui/Field';
+import { useCan } from '../hooks/usePermission';
 
 const SKILL_LABELS: Array<{ key: keyof PerformanceRecord; label: string }> = [
   { key: 'technicalKnowledge', label: 'Technical' },
@@ -32,6 +33,7 @@ const SKILL_LABELS: Array<{ key: keyof PerformanceRecord; label: string }> = [
 ];
 
 export default function Performance() {
+  const can = useCan();
   const table = useTableState();
   const { data: records, isLoading, isError, refetch } = useAllPerformance();
   const { data: students } = useAllStudents();
@@ -150,7 +152,8 @@ export default function Performance() {
       headerClassName: 'text-right',
       className: 'text-right',
       render: (row) => (
-        <Button
+        <>{can('performance:delete') && (
+<Button
           variant="ghost"
           size="icon"
           onClick={(e) => {
@@ -161,6 +164,7 @@ export default function Performance() {
         >
           <Trash2 className="h-4 w-4 text-red-500" />
         </Button>
+)}</>
       ),
     },
   ];
@@ -171,10 +175,12 @@ export default function Performance() {
         title="Student Performance"
         description="Evaluate students across technical, practical, and behavioural parameters."
         action={
-          <Button onClick={() => setDrawerState({ mode: 'create' })}>
+          can('performance:create') ? (
+<Button onClick={() => setDrawerState({ mode: 'create' })}>
             <Plus className="h-4 w-4" />
             New Evaluation
           </Button>
+) : undefined
         }
       />
 
@@ -255,7 +261,7 @@ export default function Performance() {
         pageSize={filtered.length || 1}
         total={filtered.length}
         emptyTitle="No performance records yet"
-        onRowClick={(row) => setDrawerState({ mode: 'edit', record: row })}
+        onRowClick={can('performance:update') ? (row) => setDrawerState({ mode: 'edit', record: row }) : undefined}
       />
 
       <Drawer open={Boolean(drawerState)} onClose={() => setDrawerState(null)} title={drawerState?.mode === 'edit' ? 'Edit Evaluation' : 'New Performance Evaluation'}>

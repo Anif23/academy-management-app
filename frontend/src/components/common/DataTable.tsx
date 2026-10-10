@@ -105,12 +105,17 @@ export function DataTable<T>({
           <thead>
             <tr className="border-b border-border bg-surface-muted/60">
               {columns.map((column) => (
-                <th key={column.key} className={cn('whitespace-nowrap px-5 py-3 text-xs font-semibold uppercase tracking-wide text-text-muted', column.headerClassName)}>
+                <th
+                  key={column.key}
+                  scope="col"
+                  aria-sort={column.sortable && sortBy === column.key ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined}
+                  className={cn('whitespace-nowrap px-5 py-3 text-xs font-semibold uppercase tracking-wide text-text-muted', column.headerClassName)}
+                >
                   {column.sortable && onSortChange ? (
                     <button
                       type="button"
                       onClick={() => onSortChange(column.key)}
-                      className="inline-flex items-center gap-1 hover:text-text-primary"
+                      className="inline-flex items-center gap-1 rounded hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                     >
                       {column.header}
                       <ChevronsUpDown className={cn('h-3.5 w-3.5', sortBy === column.key && 'text-brand-600')} />
@@ -146,7 +151,22 @@ export function DataTable<T>({
                 <tr
                   key={rowKey(row)}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
-                  className={cn('transition-colors hover:bg-surface-hover', onRowClick && 'cursor-pointer')}
+                  onKeyDown={
+                    onRowClick
+                      ? (event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            onRowClick(row);
+                          }
+                        }
+                      : undefined
+                  }
+                  tabIndex={onRowClick ? 0 : undefined}
+                  role={onRowClick ? 'button' : undefined}
+                  className={cn(
+                    'transition-colors hover:bg-surface-hover',
+                    onRowClick && 'cursor-pointer focus-visible:outline-none focus-visible:bg-surface-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500',
+                  )}
                 >
                   {columns.map((column) => (
                     <td key={column.key} className={cn('px-5 py-3.5 align-middle text-text-secondary', column.className)}>

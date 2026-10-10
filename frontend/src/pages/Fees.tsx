@@ -106,7 +106,7 @@ export default function Fees() {
         open={Boolean(selectedFee)}
         onClose={() => setSelectedFee(null)}
         title={studentFor(selectedFee ?? ({} as FeeRecord))?.name ?? 'Fee Details'}
-        description="Update fee structure or record a new payment."
+        description="Fee structure, payments and dues."
         size="lg"
       >
         {selectedFee && (

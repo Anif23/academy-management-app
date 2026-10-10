@@ -4,7 +4,8 @@ describe('RBAC permission matrix', () => {
   test('ADMIN has full management permissions', () => {
     expect(roleHasPermission(ROLES.ADMIN, 'students:delete')).toBe(true);
     expect(roleHasPermission(ROLES.ADMIN, 'users:create')).toBe(true);
-    expect(roleHasPermission(ROLES.ADMIN, 'fees:manage')).toBe(true);
+    expect(roleHasPermission(ROLES.ADMIN, 'fees:read')).toBe(true);
+    expect(roleHasPermission(ROLES.ADMIN, 'fees:update')).toBe(true);
   });
 
   test('STAFF cannot delete students or manage users', () => {
@@ -12,9 +13,9 @@ describe('RBAC permission matrix', () => {
     expect(roleHasPermission(ROLES.STAFF, 'users:create')).toBe(false);
   });
 
-  test('STAFF can read/update students and manage attendance', () => {
+  test('STAFF can read students but cannot update student records', () => {
     expect(roleHasPermission(ROLES.STAFF, 'students:read')).toBe(true);
-    expect(roleHasPermission(ROLES.STAFF, 'students:update')).toBe(true);
+    expect(roleHasPermission(ROLES.STAFF, 'students:update')).toBe(false);
     expect(roleHasPermission(ROLES.STAFF, 'attendance:create')).toBe(true);
   });
 

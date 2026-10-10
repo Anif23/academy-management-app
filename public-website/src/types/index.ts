@@ -44,6 +44,17 @@ export interface AcademyInfo {
   state: string;
   phone: number;
   workingHours: string;
+  facebookUrl?: string;
+  instagramUrl?: string;
+  linkedinUrl?: string;
+  youtubeUrl?: string;
+  twitterUrl?: string;
+  legalName?: string;
+  registrationNumber?: string;
+  grievanceOfficerName?: string;
+  grievanceOfficerEmail?: string;
+  grievanceOfficerPhone?: string;
+  country?: string;
 }
 
 export interface RegistrationRequest {

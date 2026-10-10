@@ -1,13 +1,15 @@
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 const dashboardService = require('../services/dashboardService');
+const { isScopedRole } = require('../constants/roles');
 
 const getStats = asyncHandler(async (req, res) => {
-  const data = await dashboardService.getStats();
+  const data = isScopedRole(req.user.role) ? await dashboardService.getStaffStats(req.user.employeeId) : await dashboardService.getStats();
   res.json({ success: true, data });
 });
 
 const getRevenueSeries = asyncHandler(async (req, res) => {
+  if (isScopedRole(req.user.role)) throw ApiError.forbidden('Revenue reporting is not available to your role.', 'FORBIDDEN');
   const data = await dashboardService.getRevenueSeries();
   res.json({ success: true, data });
 });

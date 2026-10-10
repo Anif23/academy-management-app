@@ -1,6 +1,7 @@
 const prisma = require('../config/prisma');
 const ApiError = require('../utils/ApiError');
 const { hashPassword } = require('../utils/password');
+const { roleForEmployeeType } = require('../constants/roles');
 const { EmployeeTypeMap, ActiveInactiveMap } = require('../utils/enumMaps');
 const { parsePagination, buildPaginatedResult } = require('../utils/pagination');
 
@@ -76,6 +77,12 @@ async function create(input) {
       include: { trainerBatches: true },
     });
 
+    // Only trainers and counsellors use the app. Developers, designers,
+    // video editors and marketing staff are employee records only — no
+    // login credentials are created for them.
+    const loginRole = roleForEmployeeType(created.type);
+    if (!loginRole) return created;
+
     const existingUser = await tx.user.findUnique({
       where: { email: created.email },
       include: { student: true, employee: true },
@@ -94,7 +101,7 @@ async function create(input) {
         data: {
           name: created.name,
           phone: created.phone,
-          role: 'STAFF',
+          role: loginRole,
           employee: { connect: { id: created.id } },
         },
       });
@@ -104,8 +111,9 @@ async function create(input) {
           name: created.name,
           email: created.email,
           passwordHash: await hashPassword(created.email),
-          role: 'STAFF',
+          role: loginRole,
           phone: created.phone,
+          mustChangePassword: true,
           employee: { connect: { id: created.id } },
         },
       });
@@ -122,7 +130,40 @@ async function update(id, patch) {
   if (data.type) data.type = EmployeeTypeMap.toDb(data.type);
   if (data.status) data.status = ActiveInactiveMap.toDb(data.status);
 
-  const employee = await prisma.employee.update({ where: { id }, data, include: { trainerBatches: true } });
+  const employee = await prisma.$transaction(async (tx) => {
+    const updated = await tx.employee.update({ where: { id }, data, include: { trainerBatches: true } });
+
+    // Keep the login in step with the job type: trainer → STAFF, counsellor
+    // → COUNSELLOR. Moving to a type that doesn't use the app (developer,
+    // designer, ...) deactivates the login instead of leaving stale access.
+    if (patch.type) {
+      const loginRole = roleForEmployeeType(updated.type);
+      const linked = await tx.user.findFirst({ where: { employee: { id } } });
+
+      if (linked && loginRole) {
+        await tx.user.update({ where: { id: linked.id }, data: { role: loginRole, status: 'ACTIVE' } });
+      } else if (linked && !loginRole) {
+        await tx.user.update({ where: { id: linked.id }, data: { status: 'INACTIVE' } });
+        await tx.refreshToken.updateMany({ where: { userId: linked.id, revokedAt: null }, data: { revokedAt: new Date() } });
+      } else if (!linked && loginRole) {
+        const emailTaken = await tx.user.findUnique({ where: { email: updated.email } });
+        if (!emailTaken) {
+          await tx.user.create({
+            data: {
+              name: updated.name,
+              email: updated.email,
+              passwordHash: await hashPassword(updated.email),
+              role: loginRole,
+              phone: updated.phone,
+              mustChangePassword: true,
+              employee: { connect: { id: updated.id } },
+            },
+          });
+        }
+      }
+    }
+    return updated;
+  });
   return toPublic(employee);
 }
 
