@@ -148,44 +148,77 @@ function ScrollToHash() {
     }
 
     const id = location.hash.slice(1);
-    let settled = false;
-    let observer: MutationObserver | null = null;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let target: Element | null = null;
+    let mutationObserver: MutationObserver | null = null;
+    let resizeObserver: ResizeObserver | null = null;
+    let mutationTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    let settleTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    let maxWaitTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    let alignmentTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
-    const scrollToTarget = (el: Element) => {
-      if (settled) return;
-      settled = true;
-      observer?.disconnect();
-      if (timeoutId) clearTimeout(timeoutId);
-      // Two rAFs: one for this paint, one for anything (GSAP, images) that
-      // shifts layout a frame later — otherwise we can land a bit short/long.
+    const cleanup = () => {
+      mutationObserver?.disconnect();
+      resizeObserver?.disconnect();
+      if (mutationTimeoutId) clearTimeout(mutationTimeoutId);
+      if (settleTimeoutId) clearTimeout(settleTimeoutId);
+      if (maxWaitTimeoutId) clearTimeout(maxWaitTimeoutId);
+      if (alignmentTimeoutId) clearTimeout(alignmentTimeoutId);
+      window.removeEventListener('wheel', stopWatchingLayout);
+      window.removeEventListener('touchstart', stopWatchingLayout);
+      window.removeEventListener('keydown', stopWatchingLayout);
+    };
+
+    const alignTarget = (behavior: ScrollBehavior) => {
+      if (!target) return;
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          target?.scrollIntoView({ behavior, block: 'start' });
         });
       });
     };
 
-    const existing = document.getElementById(id);
-    if (existing) {
-      scrollToTarget(existing);
-      return;
+    function stopWatchingLayout() {
+      cleanup();
     }
 
-    // The target section (e.g. FAQ) can still be loading its own data — its
-    // `id` doesn't exist in the DOM yet, so a fixed number of quick retries
-    // can run out before it mounts. Watch the DOM instead, and give up after
-    // a generous timeout rather than watching forever.
-    observer = new MutationObserver(() => {
-      const el = document.getElementById(id);
-      if (el) scrollToTarget(el);
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-    timeoutId = setTimeout(() => observer?.disconnect(), 8000);
+    const startWatchingLayout = (el: Element) => {
+      if (target) return;
+      target = el;
+      mutationObserver?.disconnect();
+      if (mutationTimeoutId) clearTimeout(mutationTimeoutId);
+
+      alignTarget('smooth');
+      resizeObserver = new ResizeObserver(() => {
+        if (alignmentTimeoutId) clearTimeout(alignmentTimeoutId);
+        alignmentTimeoutId = setTimeout(() => alignTarget('auto'), 80);
+        if (settleTimeoutId) clearTimeout(settleTimeoutId);
+        settleTimeoutId = setTimeout(cleanup, 1200);
+      });
+      resizeObserver.observe(document.documentElement);
+      settleTimeoutId = setTimeout(cleanup, 1200);
+      maxWaitTimeoutId = setTimeout(cleanup, 10000);
+      window.addEventListener('wheel', stopWatchingLayout, { once: true, passive: true });
+      window.addEventListener('touchstart', stopWatchingLayout, { once: true, passive: true });
+      window.addEventListener('keydown', stopWatchingLayout, { once: true });
+    };
+
+    const existing = document.getElementById(id);
+    if (existing) {
+      startWatchingLayout(existing);
+    } else {
+      // Some sections render after their data loads. Wait for the target to
+      // mount, then track layout changes so async content cannot shift it
+      // away from the viewport after the initial hash navigation.
+      mutationObserver = new MutationObserver(() => {
+        const el = document.getElementById(id);
+        if (el) startWatchingLayout(el);
+      });
+      mutationObserver.observe(document.body, { childList: true, subtree: true });
+      mutationTimeoutId = setTimeout(cleanup, 8000);
+    }
 
     return () => {
-      observer?.disconnect();
-      if (timeoutId) clearTimeout(timeoutId);
+      cleanup();
     };
   }, [location.pathname, location.hash]);
 
