@@ -228,7 +228,7 @@ function ScrollToHash() {
 const AppContent = () => {
 
   return (
-    <div className="min-h-screen bg-slate-50 relative overflow-hidden">
+    <div className="min-h-screen bg-slate-50 relative overflow-x-clip">
       {/* Global Decorative Mesh Gradients - animated on scroll */}
       <AnimatedBackground />
 
